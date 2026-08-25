@@ -159,7 +159,7 @@ function App() {
       .catch((err) => setBanner(String(err)));
   }, []);
 
-  const handleDragOver = useCallback(
+  const handleTicketNodeDragOver = useCallback(
     (e: React.DragEvent) => {
       if (pipeline.running) return;
       e.preventDefault();
@@ -169,9 +169,14 @@ function App() {
     [pipeline.running]
   );
 
-  const handleDrop = useCallback(
+  const handleTicketNodeDragLeave = useCallback(() => {
+    setIsDropTarget(false);
+  }, []);
+
+  const handleTicketNodeDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setIsDropTarget(false);
       if (pipeline.running) return;
       const filename = e.dataTransfer.getData("text/plain");
@@ -184,21 +189,29 @@ function App() {
 
   const nodes: HubNodeType[] = useMemo(
     () =>
-      DIAGRAM_NODES.map((spec) => ({
-        id: spec.id,
-        type: "hub",
-        position: { x: spec.x, y: spec.y },
-        data: {
-          diagramId: spec.id,
-          label: spec.label,
-          statusLine: diagramState[spec.id].statusLine,
-          status: diagramState[spec.id].status,
-          size: spec.size,
-        },
-        draggable: false,
-        selectable: true,
-      })),
-    [diagramState]
+      DIAGRAM_NODES.map((spec) => {
+        const isTicketNode = spec.id === "ticket";
+        return {
+          id: spec.id,
+          type: "hub",
+          position: { x: spec.x, y: spec.y },
+          data: {
+            diagramId: spec.id,
+            label: spec.label,
+            statusLine: diagramState[spec.id].statusLine,
+            status: diagramState[spec.id].status,
+            size: spec.size,
+            isDropZone: isTicketNode,
+            isDropActive: isTicketNode && isDropTarget,
+            onDropZoneDragOver: isTicketNode ? handleTicketNodeDragOver : undefined,
+            onDropZoneDragLeave: isTicketNode ? handleTicketNodeDragLeave : undefined,
+            onDropZoneDrop: isTicketNode ? handleTicketNodeDrop : undefined,
+          },
+          draggable: false,
+          selectable: true,
+        };
+      }),
+    [diagramState, isDropTarget, handleTicketNodeDragOver, handleTicketNodeDragLeave, handleTicketNodeDrop]
   );
 
   const edges: IntakeEdgeType[] = useMemo(
@@ -233,12 +246,7 @@ function App() {
         />
       </div>
 
-      <div
-        className={`flow-surface${isDropTarget ? " is-drop-target" : ""}`}
-        onDragOver={handleDragOver}
-        onDragLeave={() => setIsDropTarget(false)}
-        onDrop={handleDrop}
-      >
+      <div className="flow-surface">
         {banner ? (
           <div
             className="error-banner"
@@ -247,7 +255,6 @@ function App() {
             {banner}
           </div>
         ) : null}
-        {isDropTarget ? <div className="drop-hint">Drop to feed this ticket to the agent</div> : null}
         <ReactFlow<HubNodeType, Edge>
           nodes={nodes}
           edges={edges}

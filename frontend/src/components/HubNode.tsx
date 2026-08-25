@@ -9,6 +9,11 @@ export interface HubNodeData extends Record<string, unknown> {
   statusLine: string;
   status: NodeRunStatus;
   size: number;
+  isDropZone?: boolean;
+  isDropActive?: boolean;
+  onDropZoneDragOver?: (e: React.DragEvent) => void;
+  onDropZoneDragLeave?: (e: React.DragEvent) => void;
+  onDropZoneDrop?: (e: React.DragEvent) => void;
 }
 
 export type HubNodeType = Node<HubNodeData, "hub">;
@@ -29,11 +34,17 @@ const ICON_BY_DIAGRAM_ID: Record<DiagramNodeId, Parameters<typeof NodeIcon>[0]["
  * linear-pipeline node stacked the label inside the box, which pushed the
  * box taller than the circle and put every edge a few px below center. */
 export function HubNode({ data, selected }: NodeProps<HubNodeType>) {
+  const dropZoneClass = data.isDropZone
+    ? ` is-drop-zone${data.isDropActive ? " is-drop-active" : ""}`
+    : "";
   return (
     <div
-      className={`hub-node is-${data.status}`}
+      className={`hub-node is-${data.status}${dropZoneClass}`}
       style={{ width: data.size, height: data.size }}
       aria-label={`${data.label}, ${data.statusLine}`}
+      onDragOver={data.isDropZone ? data.onDropZoneDragOver : undefined}
+      onDragLeave={data.isDropZone ? data.onDropZoneDragLeave : undefined}
+      onDrop={data.isDropZone ? data.onDropZoneDrop : undefined}
     >
       <Handle id="in" type="target" position={Position.Left} isConnectable={false} />
       <div
