@@ -7,6 +7,8 @@ interface TicketPanelProps {
   onUpload: (file: File, instructions: string, subject: string) => void;
   onReset: () => void;
   running: boolean;
+  onCardDragStart: () => void;
+  onCardDragEnd: () => void;
 }
 
 /** Each ticket is a card you can either click (expand to see the full
@@ -14,7 +16,15 @@ interface TicketPanelProps {
  * dragging is what starts a run, matching how a real intake queue would
  * work. Uses native HTML5 drag-and-drop (dataTransfer carries the
  * ticket_id); the drop target lives in App.tsx on the flow canvas. */
-export function TicketPanel({ sampleTickets, onRunSample, onUpload, onReset, running }: TicketPanelProps) {
+export function TicketPanel({
+  sampleTickets,
+  onRunSample,
+  onUpload,
+  onReset,
+  running,
+  onCardDragStart,
+  onCardDragEnd,
+}: TicketPanelProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [uploadInstructions, setUploadInstructions] = useState("");
@@ -50,7 +60,9 @@ export function TicketPanel({ sampleTickets, onRunSample, onUpload, onReset, run
                   }
                   e.dataTransfer.setData("text/plain", ticket.ticket_id);
                   e.dataTransfer.effectAllowed = "copy";
+                  onCardDragStart();
                 }}
+                onDragEnd={onCardDragEnd}
                 onClick={() => setExpanded(isExpanded ? null : ticket.ticket_id)}
                 onDoubleClick={() => !running && onRunSample(ticket.ticket_id)}
               >

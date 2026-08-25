@@ -10,6 +10,7 @@ export interface HubNodeData extends Record<string, unknown> {
   status: NodeRunStatus;
   size: number;
   isDropZone?: boolean;
+  isDropArmed?: boolean;
   isDropActive?: boolean;
   onDropZoneDragOver?: (e: React.DragEvent) => void;
   onDropZoneDragLeave?: (e: React.DragEvent) => void;
@@ -27,7 +28,7 @@ export type HubNodeType = Node<HubNodeData, "hub">;
  * box taller than the circle and put every edge a few px below center. */
 export function HubNode({ data, selected }: NodeProps<HubNodeType>) {
   const dropZoneClass = data.isDropZone
-    ? ` is-drop-zone${data.isDropActive ? " is-drop-active" : ""}`
+    ? ` is-drop-zone${data.isDropArmed ? " is-drop-armed" : ""}${data.isDropActive ? " is-drop-active" : ""}`
     : "";
   return (
     <div

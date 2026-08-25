@@ -122,14 +122,19 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .hub-node.is-error .hub-node-status { color: #e00000; font-weight: 700; }
 
 /* Drop target: only the ticket node itself accepts a dragged ticket card
-   (not the whole canvas), so the affordance lives on the node — a resting
-   dashed ring that fills solid and pops slightly once a drag is hovering
-   directly over it, mirroring the is-active pulse state's visual language. */
-.hub-node.is-drop-zone.is-pending .hub-node-circle {
-  border-style: dashed; border-color: #999;
+   (not the whole canvas), so the affordance lives on the node. It stays
+   plain grey at rest (same as every other pending node) and only turns
+   black — outline first, then filled — once the user has actually picked
+   a ticket up, so the responsiveness reads as "you can drop this here"
+   rather than being on all the time. */
+.hub-node.is-drop-zone.is-drop-armed .hub-node-circle {
+  border-color: #111;
 }
-.hub-node.is-drop-zone.is-pending .hub-node-status::after {
-  content: "— drop ticket here"; margin-left: 4px; color: #999; font-weight: 400;
+.hub-node.is-drop-zone.is-drop-armed .hub-node-circle svg { color: #111; }
+.hub-node.is-drop-zone.is-drop-armed .hub-node-label strong { color: #111; }
+.hub-node.is-drop-zone.is-drop-armed .hub-node-status { color: #111; }
+.hub-node.is-drop-zone.is-drop-armed .hub-node-status::after {
+  content: "— drop ticket here"; margin-left: 4px; color: #111; font-weight: 400;
 }
 .hub-node.is-drop-active .hub-node-circle {
   border-style: solid; border-color: #111; background: #111;

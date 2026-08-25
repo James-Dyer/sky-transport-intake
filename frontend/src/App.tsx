@@ -39,6 +39,7 @@ function App() {
   const [banner, setBanner] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<LogLine[]>([]);
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const [isDraggingTicket, setIsDraggingTicket] = useState(false);
   const eventChainRef = useRef<Promise<void>>(Promise.resolve());
   const toolStartedAtRef = useRef<Map<ToolId, number>>(new Map());
 
@@ -170,6 +171,15 @@ function App() {
       .catch((err) => setBanner(String(err)));
   }, []);
 
+  const handleCardDragStart = useCallback(() => {
+    setIsDraggingTicket(true);
+  }, []);
+
+  const handleCardDragEnd = useCallback(() => {
+    setIsDraggingTicket(false);
+    setIsDropTarget(false);
+  }, []);
+
   const handleTicketNodeDragOver = useCallback(
     (e: React.DragEvent) => {
       if (agent.running) return;
@@ -213,6 +223,7 @@ function App() {
             status: diagramState[spec.id].status,
             size: spec.size,
             isDropZone: isTicketNode,
+            isDropArmed: isTicketNode && isDraggingTicket,
             isDropActive: isTicketNode && isDropTarget,
             onDropZoneDragOver: isTicketNode ? handleTicketNodeDragOver : undefined,
             onDropZoneDragLeave: isTicketNode ? handleTicketNodeDragLeave : undefined,
@@ -222,7 +233,14 @@ function App() {
           selectable: true,
         };
       }),
-    [diagramState, isDropTarget, handleTicketNodeDragOver, handleTicketNodeDragLeave, handleTicketNodeDrop]
+    [
+      diagramState,
+      isDraggingTicket,
+      isDropTarget,
+      handleTicketNodeDragOver,
+      handleTicketNodeDragLeave,
+      handleTicketNodeDrop,
+    ]
   );
 
   const edges: IntakeEdgeType[] = useMemo(
@@ -260,6 +278,8 @@ function App() {
           onUpload={handleUpload}
           onReset={handleReset}
           running={agent.running}
+          onCardDragStart={handleCardDragStart}
+          onCardDragEnd={handleCardDragEnd}
         />
       </div>
 
