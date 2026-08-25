@@ -63,7 +63,7 @@ export interface DiagramNodeSpec {
 export const DIAGRAM_NODES: DiagramNodeSpec[] = [
   { id: "ticket", label: "Ticket ingress", size: 76, x: 0, y: 56 },
   { id: "pdf_reader", label: "Read PDF skill", size: 76, x: 0, y: 256, targetSides: ["right"] },
-  { id: "sop_search", label: "Standard Operating Procedure Database (RAG)", size: 76, x: 326, y: -40, targetSides: ["bottom"] },
+  { id: "sop_search", label: "Standard Operating Procedure Database", size: 76, x: 326, y: -40, targetSides: ["bottom"] },
   {
     id: "agent",
     label: "AI intake agent",
