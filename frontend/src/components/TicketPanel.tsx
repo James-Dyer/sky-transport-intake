@@ -75,7 +75,7 @@ export function TicketPanel({
 
   return (
     <>
-      <p className="eyebrow">Tickets — drag onto the agent to submit</p>
+      <h2 className="panel-heading">Tickets</h2>
       <ul className="ticket-list">
         {sampleTickets.map((ticket) => {
           const isExpanded = expanded === ticket.ticket_id;
