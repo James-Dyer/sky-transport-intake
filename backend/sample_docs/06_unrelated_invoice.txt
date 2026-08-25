@@ -1,0 +1,15 @@
+OFFICE SUPPLY DEPOT
+INVOICE #48213
+
+Bill To: Sky Transport Solutions
+121 East 11th Street, Tracy, CA
+
+Items:
+  1 case printer paper           $34.99
+  2 toner cartridges             $118.50
+  1 box binder clips             $6.25
+
+Total Due: $159.74
+Payment Terms: Net 30
+
+Invoice date: August 12, 2026
