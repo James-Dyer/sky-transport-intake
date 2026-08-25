@@ -43,10 +43,10 @@ export function TicketPanel({ sampleDocs, onRunSample, onUpload, onReset, runnin
                 onDoubleClick={() => !running && onRunSample(doc.filename)}
               >
                 <div className="ticket-card-head">
-                  <strong>{doc.filename}</strong>
+                  <strong>{doc.preview.split("\n")[0]}</strong>
                   <span className="drag-hint">{isExpanded ? "click to close" : "drag me"}</span>
                 </div>
-                {!isExpanded ? <p className="preview">{doc.preview.split("\n")[0]}</p> : null}
+                {!isExpanded ? <p className="preview">{doc.filename}</p> : null}
                 {isExpanded ? <pre className="ticket-card-full">{doc.full_text}</pre> : null}
               </div>
             </li>
@@ -73,10 +73,6 @@ export function TicketPanel({ sampleDocs, onRunSample, onUpload, onReset, runnin
       <button className="reset-button" onClick={onReset} disabled={running}>
         Reset demo data
       </button>
-      {/* onRunSample stays available for keyboard/non-drag fallback use, wired via double-click */}
-      <p className="eyebrow" style={{ marginTop: 12 }}>
-        Tip: double-click a ticket to run it without dragging
-      </p>
     </>
   );
 }
