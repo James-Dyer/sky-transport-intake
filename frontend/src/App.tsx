@@ -184,7 +184,13 @@ function App() {
     [agent.running]
   );
 
-  const handleTicketNodeDragLeave = useCallback(() => {
+  const handleTicketNodeDragLeave = useCallback((e: React.DragEvent) => {
+    // dragleave fires whenever the pointer crosses ANY element boundary,
+    // including moving from this node onto one of its own children (the
+    // circle, the label) — without this check, wiggling over the node
+    // toggles isDropTarget on/off many times a second, thrashing the whole
+    // node list's re-render (see nodes useMemo below).
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setIsDropTarget(false);
   }, []);
 
