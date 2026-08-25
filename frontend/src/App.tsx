@@ -10,7 +10,6 @@ import {
 } from "./api";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
 import { HubNode, type HubNodeType } from "./components/HubNode";
-import { RecordsTable } from "./components/RecordsTable";
 import { ResultSummary } from "./components/ResultSummary";
 import { TerminalLog } from "./components/TerminalLog";
 import { TicketPanel } from "./components/TicketPanel";
@@ -34,7 +33,6 @@ const EDGE_TYPES = { intake: IntakeEdge };
 
 function App() {
   const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>([]);
-  const [records, setRecords] = useState<RecordRow[]>([]);
   const [pipeline, dispatch] = useReducer(pipelineReducer, initialPipelineState);
   const [lastResult, setLastResult] = useState<RecordRow | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
@@ -59,7 +57,6 @@ function App() {
   const refreshRecordsAndFindRun = useCallback(async (runId: string) => {
     try {
       const rows = await fetchRecords();
-      setRecords(rows);
       const match = rows.find((r) => r.run_id === runId);
       if (match) setLastResult(match);
     } catch (err) {
@@ -67,14 +64,9 @@ function App() {
     }
   }, []);
 
-  const refreshRecords = useCallback(() => {
-    fetchRecords().then(setRecords).catch((err) => setBanner(String(err)));
-  }, []);
-
   useEffect(() => {
     fetchSampleDocs().then(setSampleDocs).catch((err) => setBanner(String(err)));
-    refreshRecords();
-  }, [refreshRecords]);
+  }, []);
 
   const runDocument = useCallback(
     async (submit: () => Promise<{ run_id: string; filename: string }>) => {
@@ -160,13 +152,12 @@ function App() {
   const handleReset = useCallback(() => {
     resetStore()
       .then(() => {
-        refreshRecords();
         setLastResult(null);
         setLogLines([]);
         dispatch({ type: "RESET" });
       })
       .catch((err) => setBanner(String(err)));
-  }, [refreshRecords]);
+  }, []);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -232,54 +223,50 @@ function App() {
 
   return (
     <div className="app-root">
-      <div className="app-body">
-        <div className="controls-panel">
-          <TicketPanel
-            sampleDocs={sampleDocs}
-            onRunSample={handleRunSample}
-            onUpload={handleUpload}
-            onReset={handleReset}
-            running={pipeline.running}
-          />
-        </div>
-
-        <div
-          className={`flow-surface${isDropTarget ? " is-drop-target" : ""}`}
-          onDragOver={handleDragOver}
-          onDragLeave={() => setIsDropTarget(false)}
-          onDrop={handleDrop}
-        >
-          {banner ? (
-            <div
-              className="error-banner"
-              style={{ position: "absolute", top: 10, left: 10, right: 10, zIndex: 10 }}
-            >
-              {banner}
-            </div>
-          ) : null}
-          {isDropTarget ? <div className="drop-hint">Drop to feed this ticket to the agent</div> : null}
-          <ReactFlow<HubNodeType, Edge>
-            nodes={nodes}
-            edges={edges}
-            edgeTypes={EDGE_TYPES}
-            nodeTypes={NODE_TYPES}
-            fitView
-            fitViewOptions={{ padding: 0.35 }}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            proOptions={{ hideAttribution: true }}
-          >
-            <Background color="#eee" gap={24} />
-          </ReactFlow>
-        </div>
-
-        <div className="debug-panel">
-          <ResultSummary record={lastResult} processingFilename={pipeline.running ? pipeline.filename : null} />
-          <TerminalLog lines={logLines} />
-        </div>
+      <div className="controls-panel">
+        <TicketPanel
+          sampleDocs={sampleDocs}
+          onRunSample={handleRunSample}
+          onUpload={handleUpload}
+          onReset={handleReset}
+          running={pipeline.running}
+        />
       </div>
 
-      <RecordsTable records={records} />
+      <div
+        className={`flow-surface${isDropTarget ? " is-drop-target" : ""}`}
+        onDragOver={handleDragOver}
+        onDragLeave={() => setIsDropTarget(false)}
+        onDrop={handleDrop}
+      >
+        {banner ? (
+          <div
+            className="error-banner"
+            style={{ position: "absolute", top: 10, left: 10, right: 10, zIndex: 10 }}
+          >
+            {banner}
+          </div>
+        ) : null}
+        {isDropTarget ? <div className="drop-hint">Drop to feed this ticket to the agent</div> : null}
+        <ReactFlow<HubNodeType, Edge>
+          nodes={nodes}
+          edges={edges}
+          edgeTypes={EDGE_TYPES}
+          nodeTypes={NODE_TYPES}
+          fitView
+          fitViewOptions={{ padding: 0.35 }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background color="#eee" gap={24} />
+        </ReactFlow>
+      </div>
+
+      <div className="debug-panel">
+        <ResultSummary record={lastResult} processingFilename={pipeline.running ? pipeline.filename : null} />
+        <TerminalLog lines={logLines} />
+      </div>
     </div>
   );
 }

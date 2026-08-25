@@ -18,9 +18,10 @@ button, select, input { color: inherit; font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .35; }
 
-.app-root { display: grid; grid-template-rows: 1fr auto; height: 100vh; background: #fff; }
-
-.app-body { display: grid; grid-template-columns: 280px 1fr 320px; overflow: hidden; }
+.app-root {
+  display: grid; grid-template-columns: 280px 1fr 320px; height: 100vh; overflow: hidden;
+  background: #fff;
+}
 
 .controls-panel, .debug-panel {
   border-right: 1px solid #111; padding: 16px; overflow-y: auto;
@@ -125,19 +126,9 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .token-glyph rect, .token-glyph path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .token-glyph circle.token-bg { fill: #fff; stroke: #111; stroke-width: 1.5; }
 
-.records-strip { border-top: 1px solid #111; max-height: 200px; overflow-y: auto; }
-.records-strip table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.records-strip th {
-  position: sticky; top: 0; background: #fff; text-align: left; padding: 8px 12px;
-  border-bottom: 1px solid #111; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #666;
-}
-.records-strip td { padding: 7px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
-.records-strip tr.needs-review td:first-child { border-left: 3px solid #e00000; }
-.records-strip tr.deadline-flag td:first-child { border-left: 3px solid #111; }
 .tag { display: inline-block; border: 1px solid #111; padding: 1px 6px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; margin-right: 4px; }
 .tag.review { border-color: #e00000; color: #e00000; }
 .tag.deadline { background: #111; color: #fff; }
-.empty-state { padding: 24px; text-align: center; color: #999; font-size: 12px; }
 
 /* Compact post-run summary, replaces the old raw per-node JSON trace panel */
 .result-summary {
