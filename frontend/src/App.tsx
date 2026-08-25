@@ -48,6 +48,21 @@ function App() {
    * edge before the reverse "data" pulse it just triggered had a chance to
    * render. Pacing TOOL_CALL_STARTED against this ref too closes that gap. */
   const edgeActivatedAtRef = useRef<number>(0);
+  /** run_id of the run currently "owned" by the UI. A dispatch whose
+   * closure captured a different (older) run_id is stale — see runTicket's
+   * isCurrentRun guard — and must be dropped rather than applied, or a
+   * straggling event from a just-finished run can land after the next
+   * run's RUN_STARTED and corrupt its state (e.g. pulsing an edge for a
+   * tool the new run hasn't called, or racing React Flow's node
+   * measurement badly enough that every node gets stuck permanently
+   * visibility:hidden). */
+  const currentRunIdRef = useRef<string | null>(null);
+  /** Cleanup for the in-flight run's EventSource, so a new run can force-
+   * close the previous one instead of leaving it streaming stale events
+   * (see currentRunIdRef above) until its own "done"/error arrives. */
+  const stopStreamingRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => stopStreamingRef.current?.(), []);
 
   /** Runs `fn` after every previously enqueued event has finished, so a
    * TOOL_CALL_FINISHED that's artificially delayed (see timing.ts) can't be
@@ -78,6 +93,11 @@ function App() {
 
   const runTicket = useCallback(
     async (subject: string, submit: () => Promise<{ run_id: string; filename: string }>) => {
+      // A run already streaming (its own "done"/error hasn't arrived yet)
+      // must be torn down before starting another — otherwise its
+      // straggling events keep landing after this run's RUN_STARTED and
+      // corrupt shared state (see currentRunIdRef/stopStreamingRef above).
+      stopStreamingRef.current?.();
       setBanner(null);
       setLastResult(null);
       try {
@@ -85,13 +105,17 @@ function App() {
         dispatch({ type: "RUN_STARTED", runId: run_id, subject });
         setLogLines([formatRunStarted(subject)]);
 
+        currentRunIdRef.current = run_id;
         eventChainRef.current = Promise.resolve();
         toolStartedAtRef.current.clear();
         edgeActivatedAtRef.current = Date.now();
 
+        const isCurrentRun = () => currentRunIdRef.current === run_id;
+
         const stopStreaming = streamRun(run_id, {
           onAgentThought: (payload) => {
             enqueue(() => {
+              if (!isCurrentRun()) return;
               dispatch({ type: "AGENT_THOUGHT", text: payload.text });
               appendLog(formatAgentThought(payload.text));
             });
@@ -99,6 +123,7 @@ function App() {
           onToolCallStarted: (payload) => {
             const tool = payload.tool as ToolId;
             enqueue(async () => {
+              if (!isCurrentRun()) return;
               // This tool's forward pulse is about to claim the shared
               // active edge — if the previous tool's reverse pulse only
               // just started, give it its own MIN_ACTIVE_MS on screen
@@ -107,6 +132,7 @@ function App() {
                 const delay = remainingDelay(Date.now() - edgeActivatedAtRef.current);
                 if (delay > 0) await sleep(delay);
               }
+              if (!isCurrentRun()) return;
               toolStartedAtRef.current.set(tool, Date.now());
               dispatch({ type: "TOOL_CALL_STARTED", tool });
               if (diagramEdgeForTool(tool)) edgeActivatedAtRef.current = Date.now();
@@ -115,9 +141,11 @@ function App() {
           onToolCallFinished: (payload) => {
             const tool = payload.tool as ToolId;
             enqueue(async () => {
+              if (!isCurrentRun()) return;
               const startedAt = toolStartedAtRef.current.get(tool) ?? Date.now();
               const delay = remainingDelay(Date.now() - startedAt);
               if (delay > 0) await sleep(delay);
+              if (!isCurrentRun()) return;
               dispatch({
                 type: "TOOL_CALL_FINISHED",
                 tool,
@@ -129,25 +157,30 @@ function App() {
           },
           onRunCompleted: () => {
             enqueue(() => {
+              if (!isCurrentRun()) return;
               void refreshRecordsAndFindRun(run_id);
               appendLog(formatRunCompleted());
             });
           },
           onRunFailed: (payload) => {
             enqueue(() => {
+              if (!isCurrentRun()) return;
               setBanner(`Run failed: ${payload.error}`);
               appendLog(formatRunFailed(payload.error));
             });
           },
           onDone: () => {
             enqueue(() => {
+              if (!isCurrentRun()) return;
               dispatch({ type: "RUN_DONE" });
             });
           },
           onError: () => {
+            if (!isCurrentRun()) return;
             setBanner("Lost connection to the live event stream.");
           },
         });
+        stopStreamingRef.current = stopStreaming;
         return stopStreaming;
       } catch (err) {
         dispatch({ type: "RUN_ERROR", message: String(err) });
