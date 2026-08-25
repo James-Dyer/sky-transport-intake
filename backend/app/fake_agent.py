@@ -6,7 +6,8 @@ this is a fake *chat model* plugged into the same
 `langgraph.prebuilt.create_react_agent` loop the real agent uses — it
 inspects the running message history and picks the next tool call with a
 small rule-based state machine (read_pdf -> search_sop -> classify ->
-extract -> validate -> persist), using the same keyword/regex heuristics
+extract -> validate -> persist -> notify_human if needs_review), using the
+same keyword/regex heuristics
 FakeLLMClient used. This exercises the *real* tool-calling wiring
 (including the unlock_token round-trip) with zero cost/network, just like
 FakeLLMClient exercised the real graph wiring in v1.
@@ -160,6 +161,13 @@ class FakeAgentModel(BaseChatModel):
                     "urgency_reason": validated["urgency_reason"],
                     "unlock_token": validated["unlock_token"],
                 },
+            )
+
+        if validated["needs_review"] and not ok("notify_human"):
+            return self._call(
+                "This was flagged for review — notifying a human.",
+                "notify_human",
+                {"reason": validated.get("urgency_reason") or "flagged during validation"},
             )
 
         return AIMessage(content="Thought: Ticket processed.\nDone.")

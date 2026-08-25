@@ -71,14 +71,16 @@ def test_submit_sample_and_read_back_run_trace(client):
             if line.startswith("event: done"):
                 break
     # search_sop, read_pdf, record_classification, record_extraction,
-    # validate, persist — six tool calls for this scripted fake run.
-    assert len(tool_finished_events) == 6
+    # validate, persist, notify_human — seven tool calls for this scripted
+    # fake run (FakeAgentModel's limited extraction leaves needs_review
+    # true for every sample ticket, so notify_human always fires here).
+    assert len(tool_finished_events) == 7
 
     run = client.get(f"/api/runs/{run_id}").json()
     assert run["status"] == "completed"
     assert len(run["trace"]) > 0
     tool_calls = [e for e in run["trace"] if e["kind"] == "tool_call"]
-    assert tool_calls[-1]["tool"] == "persist"
+    assert tool_calls[-1]["tool"] == "notify_human"
     assert run["ticket_subject"]
     assert run["ticket_instructions"]
 

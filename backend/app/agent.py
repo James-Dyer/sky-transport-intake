@@ -55,14 +55,19 @@ You have these tools:
 - persist: writes the final record. Requires the unlock_token from your \
   most recent validate call, for these exact doc_type/fields — you must \
   call validate immediately before persist, every time.
+- notify_human: alerts a human reviewer. Call this once, right after \
+  persist succeeds, if your most recent validate call returned \
+  needs_review: true — pass a short reason. Skip it if needs_review was \
+  false.
 
 Before every tool call, write one short line starting exactly with \
 "Thought: " explaining what you're about to do and why, then call the \
 tool. Work through this at your own pace and in whatever order makes \
 sense — this is not a fixed checklist.
 
-When persist succeeds, reply with a brief final summary (no more tool \
-calls needed) — that ends your work on this ticket.
+When persist succeeds, call notify_human if needs_review was true, then \
+reply with a brief final summary (no more tool calls needed) — that ends \
+your work on this ticket.
 """
 
 

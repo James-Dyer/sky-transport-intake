@@ -5,7 +5,7 @@ import type { NodeRunStatus, ToolId } from "./types";
  * the trace but not a separate system boundary) — those two only update
  * agentStatusLine, mirroring how v1 folded classify_doc/extract_fields
  * into the hub's status line instead of giving them their own box. */
-const SPOKE_TOOLS: ToolId[] = ["search_sop", "read_pdf", "validate", "persist"];
+const SPOKE_TOOLS: ToolId[] = ["search_sop", "read_pdf", "validate", "persist", "notify_human"];
 
 export interface AgentState {
   runId: string | null;
@@ -51,6 +51,7 @@ const TOOL_TO_EDGE: Partial<Record<ToolId, string>> = {
   read_pdf: "agent-pdf_reader",
   validate: "agent-validate",
   persist: "agent-database",
+  notify_human: "agent-notify_human",
 };
 
 /** Tools that are a genuine round trip: the agent's request travels out
@@ -93,6 +94,8 @@ function summarizeToolFinish(tool: ToolId, resultSummary: { result: string } | n
       } catch {
         return "persisted";
       }
+    case "notify_human":
+      return "human notified";
     default:
       return "done";
   }

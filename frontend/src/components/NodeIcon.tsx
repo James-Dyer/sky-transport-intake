@@ -7,6 +7,7 @@ const ICON_BY_NODE: Record<DiagramNodeId, string> = {
   agent: "robot",
   validate: "check",
   database: "database",
+  notify_human: "bell",
 };
 
 interface NodeIconProps {
@@ -55,6 +56,12 @@ export function NodeIcon({ node }: NodeIconProps) {
         <>
           <ellipse {...common} cx="16" cy="8" rx="9" ry="4" />
           <path {...common} d="M7 8v8c0 2.2 4 4 9 4s9-1.8 9-4V8M7 16v8c0 2.2 4 4 9 4s9-1.8 9-4v-8" />
+        </>
+      ) : null}
+      {kind === "bell" ? (
+        <>
+          <path {...common} d="M16 6a7 7 0 0 0-7 7v4l-2.5 4h19L23 17v-4a7 7 0 0 0-7-7z" />
+          <path {...common} d="M13 25a3 3 0 0 0 6 0" />
         </>
       ) : null}
       {kind === "robot" ? (

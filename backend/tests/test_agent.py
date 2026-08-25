@@ -80,6 +80,14 @@ def test_unrelated_invoice_is_unknown_and_needs_review(store, sop_index, sample_
     assert final["needs_review"] is True
 
 
+def test_notify_human_fires_when_needs_review(store, sop_index, sample_ticket):
+    final, _ = _run(store, sop_index, sample_ticket, "4821")
+    assert final["needs_review"] is True
+    tool_names = [e["tool"] for e in final["trace"] if e["kind"] == "tool_call"]
+    assert "notify_human" in tool_names
+    assert tool_names.index("persist") < tool_names.index("notify_human")
+
+
 def test_trace_has_no_errors(store, sop_index, sample_ticket):
     final, _ = _run(store, sop_index, sample_ticket, "4821")
     assert len(final["trace"]) > 0
