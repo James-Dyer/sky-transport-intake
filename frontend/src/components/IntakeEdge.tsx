@@ -4,6 +4,10 @@ export interface DocTokenPulse {
   key: string;
   delayMs?: number;
   durationMs?: number;
+  /** Travel target -> source instead of source -> target — used for a
+   * tool_call_finished pulse traveling back to the agent hub along the
+   * same edge a tool_call_started pulse just traveled out on. */
+  reverse?: boolean;
 }
 
 export interface IntakeEdgeData extends Record<string, unknown> {
@@ -59,6 +63,7 @@ export function IntakeEdge({
             dur={`${pulse.durationMs ?? 620}ms`}
             fill="freeze"
             calcMode="spline"
+            keyPoints={pulse.reverse ? "1;0" : "0;1"}
             keyTimes="0;1"
             keySplines="0.2 0.75 0.3 1"
           />

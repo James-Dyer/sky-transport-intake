@@ -1,4 +1,4 @@
-import type { PipelineNodeId } from "./types";
+import type { ToolId } from "./types";
 
 export type LogTone = "info" | "success" | "error" | "muted";
 
@@ -18,63 +18,39 @@ export function line(text: string, tone: LogTone = "info"): LogLine {
   return { id: nextId(), text, tone };
 }
 
-const NODE_LABEL: Record<PipelineNodeId, string> = {
-  receive_ticket: "receive_ticket",
-  consult_sop: "consult_sop",
-  classify_doc: "classify_doc",
-  extract_fields: "extract_fields",
-  validate: "validate",
-  persist: "persist",
-};
+function truncate(text: string, limit = 160): string {
+  const oneLine = text.replace(/\s+/g, " ").trim();
+  return oneLine.length > limit ? `${oneLine.slice(0, limit)}…` : oneLine;
+}
 
-/** One line per node_finished summarizing what actually happened, not just
- * "done" — this is what makes the live terminal read as a real trace
- * instead of a generic progress bar. Pure function so it's testable without
- * mounting the component or opening an SSE connection. */
-export function formatNodeFinished(
-  node: PipelineNodeId,
-  durationMs: number,
-  error: string | null,
-  summary: Record<string, unknown>
+/** One line per agent_thought — this is the "watch it think" surface: the
+ * agent's own `Thought: ...` line, stripped of the prefix, streamed as it
+ * decides what to do next. Pure function so it's testable without mounting
+ * the component or opening an SSE connection. */
+export function formatAgentThought(text: string): LogLine {
+  return line(`> ${text.replace(/^Thought:\s*/, "")}`, "info");
+}
+
+export function formatToolCallStarted(tool: ToolId): LogLine {
+  return line(`[${tool}] running…`, "muted");
+}
+
+export function formatToolCallFinished(
+  tool: ToolId,
+  resultSummary: { result: string } | null,
+  durationMs: number | null,
+  error: string | null
 ): LogLine {
-  const label = NODE_LABEL[node];
   if (error) {
-    return line(`[${label}] ✗ ${error}`, "error");
+    return line(`[${tool}] ✗ ${truncate(error)}`, "error");
   }
-  const detail = describeSummary(node, summary);
-  return line(`[${label}] ✓ ${detail} (${durationMs}ms)`, "success");
+  const detail = truncate(resultSummary?.result ?? "done");
+  const suffix = durationMs != null ? ` (${durationMs}ms)` : "";
+  return line(`[${tool}] ✓ ${detail}${suffix}`, "success");
 }
 
-function describeSummary(node: PipelineNodeId, summary: Record<string, unknown>): string {
-  switch (node) {
-    case "receive_ticket":
-      return "ticket logged";
-    case "consult_sop":
-      return "SOP loaded";
-    case "classify_doc":
-      return `classified as ${summary.doc_type ?? "?"}`;
-    case "extract_fields": {
-      const extracted = summary.extracted as Record<string, unknown> | undefined;
-      const count = extracted ? Object.values(extracted).filter((v) => v != null).length : 0;
-      return `extracted ${count} field(s)`;
-    }
-    case "validate":
-      if (summary.needs_review) return "flagged for human review";
-      if (summary.deadline_flag) return "urgent — auto-filed with deadline flag";
-      return "auto-filed, no flags";
-    case "persist":
-      return `record #${summary.record_id ?? "?"} written`;
-    default:
-      return "done";
-  }
-}
-
-export function formatNodeStarted(node: PipelineNodeId): LogLine {
-  return line(`[${NODE_LABEL[node]}] running…`, "muted");
-}
-
-export function formatRunStarted(filename: string): LogLine {
-  return line(`> submitting ${filename}`, "info");
+export function formatRunStarted(subject: string): LogLine {
+  return line(`> new ticket: ${subject}`, "info");
 }
 
 export function formatRunCompleted(): LogLine {

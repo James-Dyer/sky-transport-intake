@@ -18,14 +18,6 @@ export interface HubNodeData extends Record<string, unknown> {
 
 export type HubNodeType = Node<HubNodeData, "hub">;
 
-const ICON_BY_DIAGRAM_ID: Record<DiagramNodeId, Parameters<typeof NodeIcon>[0]["node"]> = {
-  ticket: "receive_ticket",
-  sop: "consult_sop",
-  agent: "classify_doc",
-  validate: "validate",
-  database: "persist",
-};
-
 /** The node's box height is set to exactly `size` (the circle's diameter)
  * via inline style, and the label/status text is positioned absolutely
  * below it rather than stacked in normal flow. That's what keeps a
@@ -51,7 +43,7 @@ export function HubNode({ data, selected }: NodeProps<HubNodeType>) {
         className={`hub-node-circle${selected ? " is-selected" : ""}`}
         style={{ width: data.size, height: data.size }}
       >
-        <NodeIcon node={ICON_BY_DIAGRAM_ID[data.diagramId]} />
+        <NodeIcon node={data.diagramId} />
       </div>
       <Handle id="out" type="source" position={Position.Right} isConnectable={false} />
       <div className="hub-node-label" style={{ top: data.size + 8 }}>

@@ -53,9 +53,19 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 
 .upload-zone {
   border: 1px dashed #111; padding: 12px; font-size: 11px; color: #555;
-  margin-bottom: 18px;
+  margin-bottom: 18px; display: grid; gap: 8px;
 }
-.upload-zone input { display: block; margin-top: 8px; font-size: 11px; }
+.upload-zone textarea, .upload-zone input[type="text"] {
+  width: 100%; border: 1px solid #ccc; padding: 6px; font-size: 11px; font-family: inherit;
+  resize: vertical;
+}
+.upload-zone textarea { min-height: 54px; }
+.upload-zone input[type="file"] { font-size: 11px; }
+.submit-ticket-button {
+  border: 1px solid #111; background: #fff; padding: 7px; font-size: 11px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+}
+.submit-ticket-button:hover:not(:disabled) { background: #111; color: #fff; }
 
 .reset-button {
   width: 100%; border: 1px solid #111; background: #fff; padding: 8px; font-size: 11px;

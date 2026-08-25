@@ -2,7 +2,7 @@
 returns usdot_number as a JSON number, not a string, which would silently
 break identity matching downstream since the SOP treats it as a primary key."""
 
-from app.graph import _normalize_fields
+from app.tools import _normalize_fields
 
 
 def test_numeric_usdot_number_is_coerced_to_string():

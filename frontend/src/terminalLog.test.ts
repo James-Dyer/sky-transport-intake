@@ -1,51 +1,46 @@
 import { describe, expect, it } from "vitest";
 import {
-  formatNodeFinished,
-  formatNodeStarted,
+  formatAgentThought,
   formatRunCompleted,
   formatRunFailed,
   formatRunStarted,
+  formatToolCallFinished,
+  formatToolCallStarted,
 } from "./terminalLog";
 
 describe("terminalLog formatting", () => {
   it("formats a run start line", () => {
-    expect(formatRunStarted("01_ifta_q2.txt").text).toBe("> submitting 01_ifta_q2.txt");
+    expect(formatRunStarted("Process IFTA filing").text).toBe("> new ticket: Process IFTA filing");
   });
 
-  it("formats a node_started line as muted", () => {
-    const l = formatNodeStarted("classify_doc");
-    expect(l.text).toBe("[classify_doc] running…");
+  it("strips the Thought: prefix from an agent_thought line", () => {
+    const l = formatAgentThought("Thought: reading the attached document.");
+    expect(l.text).toBe("> reading the attached document.");
+    expect(l.tone).toBe("info");
+  });
+
+  it("formats a tool_call_started line as muted", () => {
+    const l = formatToolCallStarted("search_sop");
+    expect(l.text).toBe("[search_sop] running…");
     expect(l.tone).toBe("muted");
   });
 
-  it("summarizes classify_doc with the resolved doc type", () => {
-    const l = formatNodeFinished("classify_doc", 480, null, { doc_type: "IFTA_QUARTERLY" });
-    expect(l.text).toBe("[classify_doc] ✓ classified as IFTA_QUARTERLY (480ms)");
+  it("formats a successful tool_call_finished line with its result and duration", () => {
+    const l = formatToolCallFinished("persist", { result: '{"record_id": 3}' }, 42, null);
+    expect(l.text).toBe('[persist] ✓ {"record_id": 3} (42ms)');
     expect(l.tone).toBe("success");
   });
 
-  it("summarizes extract_fields by counting non-null extracted values", () => {
-    const l = formatNodeFinished("extract_fields", 900, null, {
-      extracted: { carrier_name: "Acme", usdot_number: null, due_date: "2026-09-05" },
-    });
-    expect(l.text).toContain("extracted 2 field(s)");
-  });
-
-  it("distinguishes needs_review vs deadline_flag vs clean in validate", () => {
-    expect(
-      formatNodeFinished("validate", 1, null, { needs_review: true }).text
-    ).toContain("flagged for human review");
-    expect(
-      formatNodeFinished("validate", 1, null, { needs_review: false, deadline_flag: true }).text
-    ).toContain("urgent");
-    expect(
-      formatNodeFinished("validate", 1, null, { needs_review: false, deadline_flag: false }).text
-    ).toContain("no flags");
+  it("truncates a long result to keep the terminal line readable", () => {
+    const longResult = "x".repeat(300);
+    const l = formatToolCallFinished("search_sop", { result: longResult }, 10, null);
+    expect(l.text.length).toBeLessThan(200);
+    expect(l.text).toContain("…");
   });
 
   it("formats an error line distinctly from a success line", () => {
-    const l = formatNodeFinished("extract_fields", 50, "LLMError: bad json", {});
-    expect(l.text).toBe("[extract_fields] ✗ LLMError: bad json");
+    const l = formatToolCallFinished("read_pdf", null, 50, "could not read PDF");
+    expect(l.text).toBe("[read_pdf] ✗ could not read PDF");
     expect(l.tone).toBe("error");
   });
 
@@ -55,8 +50,8 @@ describe("terminalLog formatting", () => {
   });
 
   it("assigns each formatted line a unique id", () => {
-    const a = formatRunStarted("a.txt");
-    const b = formatRunStarted("b.txt");
+    const a = formatRunStarted("a");
+    const b = formatRunStarted("b");
     expect(a.id).not.toBe(b.id);
   });
 });

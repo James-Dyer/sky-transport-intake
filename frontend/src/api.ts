@@ -1,4 +1,4 @@
-import type { HealthInfo, RecordRow, RunDetail, SampleDoc } from "./types";
+import type { HealthInfo, RecordRow, RunDetail, SampleTicket } from "./types";
 
 const BASE = import.meta.env.VITE_API_BASE ?? "http://127.0.0.1:8811";
 
@@ -21,8 +21,8 @@ export function fetchHealth(): Promise<HealthInfo> {
   return jsonFetch<HealthInfo>("/api/health");
 }
 
-export function fetchSampleDocs(): Promise<SampleDoc[]> {
-  return jsonFetch<SampleDoc[]>("/api/sample-docs");
+export function fetchSampleTickets(): Promise<SampleTicket[]> {
+  return jsonFetch<SampleTicket[]>("/api/sample-tickets");
 }
 
 export function fetchRecords(): Promise<RecordRow[]> {
@@ -33,19 +33,23 @@ export function fetchRun(runId: string): Promise<RunDetail> {
   return jsonFetch<RunDetail>(`/api/runs/${encodeURIComponent(runId)}`);
 }
 
-export function submitSampleDoc(
-  filename: string
+export function submitSampleTicket(
+  ticketId: string
 ): Promise<{ run_id: string; doc_id: string; filename: string }> {
-  return jsonFetch(`/api/tickets/sample/${encodeURIComponent(filename)}`, {
+  return jsonFetch(`/api/tickets/sample/${encodeURIComponent(ticketId)}`, {
     method: "POST",
   });
 }
 
 export function submitUpload(
-  file: File
+  file: File,
+  instructions: string,
+  subject?: string
 ): Promise<{ run_id: string; doc_id: string; filename: string }> {
   const form = new FormData();
   form.append("file", file);
+  form.append("instructions", instructions);
+  if (subject) form.append("subject", subject);
   return jsonFetch(`/api/tickets`, { method: "POST", body: form });
 }
 
@@ -54,12 +58,17 @@ export function resetStore(): Promise<{ status: string }> {
 }
 
 export interface LiveEventHandlers {
-  onNodeStarted?: (payload: { node: string; started_at: string; run_id: string }) => void;
-  onNodeFinished?: (payload: {
-    node: string;
-    duration_ms: number;
+  onAgentThought?: (payload: { text: string; run_id: string }) => void;
+  onToolCallStarted?: (payload: {
+    tool: string;
+    args_summary: Record<string, unknown>;
+    run_id: string;
+  }) => void;
+  onToolCallFinished?: (payload: {
+    tool: string;
+    result_summary: { result: string };
+    duration_ms: number | null;
     error: string | null;
-    output_summary: Record<string, unknown>;
     run_id: string;
   }) => void;
   onRunCompleted?: (payload: Record<string, unknown>) => void;
@@ -80,8 +89,9 @@ export function streamRun(runId: string, handlers: LiveEventHandlers): () => voi
     });
   };
 
-  bind("node_started", handlers.onNodeStarted);
-  bind("node_finished", handlers.onNodeFinished);
+  bind("agent_thought", handlers.onAgentThought);
+  bind("tool_call_started", handlers.onToolCallStarted);
+  bind("tool_call_finished", handlers.onToolCallFinished);
   bind("run_completed", handlers.onRunCompleted);
   bind("run_failed", handlers.onRunFailed);
   source.addEventListener("done", () => {

@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS runs (
     created_at TEXT NOT NULL,
     finished_at TEXT,
     trace_json TEXT,
-    error TEXT
+    error TEXT,
+    ticket_subject TEXT,
+    ticket_instructions TEXT
 );
 
 CREATE TABLE IF NOT EXISTS records (
@@ -62,12 +64,20 @@ class Store:
         finally:
             conn.close()
 
-    def create_run(self, run_id: str, filename: str, created_at: str) -> None:
+    def create_run(
+        self,
+        run_id: str,
+        filename: str,
+        created_at: str,
+        ticket_subject: str | None = None,
+        ticket_instructions: str | None = None,
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
-                "INSERT INTO runs (run_id, filename, status, created_at) "
-                "VALUES (?, ?, 'running', ?)",
-                (run_id, filename, created_at),
+                "INSERT INTO runs (run_id, filename, status, created_at, "
+                "ticket_subject, ticket_instructions) "
+                "VALUES (?, ?, 'running', ?, ?, ?)",
+                (run_id, filename, created_at, ticket_subject, ticket_instructions),
             )
 
     def finish_run(

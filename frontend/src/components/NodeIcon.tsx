@@ -1,16 +1,16 @@
-import type { PipelineNodeId } from "../types";
+import type { DiagramNodeId } from "../diagramLayout";
 
-const ICON_BY_NODE: Record<PipelineNodeId, string> = {
-  receive_ticket: "ticket",
-  consult_sop: "book",
-  classify_doc: "robot",
-  extract_fields: "scan",
+const ICON_BY_NODE: Record<DiagramNodeId, string> = {
+  ticket: "ticket",
+  sop_search: "book",
+  pdf_reader: "scan",
+  agent: "robot",
   validate: "check",
-  persist: "database",
+  database: "database",
 };
 
 interface NodeIconProps {
-  node: PipelineNodeId;
+  node: DiagramNodeId;
 }
 
 /** Same construction as agent-gate's SystemIcon: a fixed 32x32 viewBox,
@@ -37,12 +37,6 @@ export function NodeIcon({ node }: NodeIconProps) {
         <>
           <path {...common} d="M6 6h11a3 3 0 0 1 3 3v17H9a3 3 0 0 1-3-3z" />
           <path {...common} d="M20 6h6v20h-3a3 3 0 0 0-3 3" />
-        </>
-      ) : null}
-      {kind === "tag" ? (
-        <>
-          <path {...common} d="M17 5h9v9L13.5 27 5 18.5z" />
-          <circle {...common} cx="21.5" cy="9.5" r="1.6" />
         </>
       ) : null}
       {kind === "scan" ? (

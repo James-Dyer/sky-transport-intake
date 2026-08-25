@@ -2,29 +2,30 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { Background, ReactFlow, type Edge } from "@xyflow/react";
 import {
   fetchRecords,
-  fetchSampleDocs,
+  fetchSampleTickets,
   resetStore,
   streamRun,
-  submitSampleDoc,
+  submitSampleTicket,
   submitUpload,
 } from "./api";
+import { agentReducer, initialAgentState } from "./agentReducer";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
 import { HubNode, type HubNodeType } from "./components/HubNode";
 import { ResultSummary } from "./components/ResultSummary";
 import { TerminalLog } from "./components/TerminalLog";
 import { TicketPanel } from "./components/TicketPanel";
 import { DIAGRAM_EDGES, DIAGRAM_NODES, deriveDiagramState } from "./diagramLayout";
-import { initialPipelineState, pipelineReducer } from "./pipelineReducer";
 import {
-  formatNodeFinished,
-  formatNodeStarted,
+  formatAgentThought,
   formatRunCompleted,
   formatRunFailed,
   formatRunStarted,
+  formatToolCallFinished,
+  formatToolCallStarted,
   type LogLine,
 } from "./terminalLog";
 import { remainingDelay } from "./timing";
-import type { PipelineNodeId, RecordRow, SampleDoc } from "./types";
+import type { RecordRow, SampleTicket, ToolId } from "./types";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -32,20 +33,20 @@ const NODE_TYPES = { hub: HubNode };
 const EDGE_TYPES = { intake: IntakeEdge };
 
 function App() {
-  const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>([]);
-  const [pipeline, dispatch] = useReducer(pipelineReducer, initialPipelineState);
+  const [sampleTickets, setSampleTickets] = useState<SampleTicket[]>([]);
+  const [agent, dispatch] = useReducer(agentReducer, initialAgentState);
   const [lastResult, setLastResult] = useState<RecordRow | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<LogLine[]>([]);
   const [isDropTarget, setIsDropTarget] = useState(false);
   const eventChainRef = useRef<Promise<void>>(Promise.resolve());
-  const nodeStartedAtRef = useRef<Map<PipelineNodeId, number>>(new Map());
+  const toolStartedAtRef = useRef<Map<ToolId, number>>(new Map());
 
   /** Runs `fn` after every previously enqueued event has finished, so a
-   * NODE_FINISHED that's artificially delayed (see timing.ts) can't be
-   * overtaken by the next node's NODE_STARTED, run_completed, or the final
-   * "done" dispatch — everything the UI shows stays in true event order
-   * even though some dispatches are deliberately slowed down. */
+   * TOOL_CALL_FINISHED that's artificially delayed (see timing.ts) can't be
+   * overtaken by the next event, agent_thought, or the final "done"
+   * dispatch — everything the UI shows stays in true event order even
+   * though some dispatches are deliberately slowed down. */
   const enqueue = useCallback((fn: () => void | Promise<void>) => {
     eventChainRef.current = eventChainRef.current.then(fn);
   }, []);
@@ -65,43 +66,51 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchSampleDocs().then(setSampleDocs).catch((err) => setBanner(String(err)));
+    fetchSampleTickets().then(setSampleTickets).catch((err) => setBanner(String(err)));
   }, []);
 
-  const runDocument = useCallback(
-    async (submit: () => Promise<{ run_id: string; filename: string }>) => {
+  const runTicket = useCallback(
+    async (subject: string, submit: () => Promise<{ run_id: string; filename: string }>) => {
       setBanner(null);
       setLastResult(null);
       try {
-        const { run_id, filename } = await submit();
-        dispatch({ type: "RUN_STARTED", runId: run_id, filename });
-        setLogLines([formatRunStarted(filename)]);
+        const { run_id } = await submit();
+        dispatch({ type: "RUN_STARTED", runId: run_id, subject });
+        setLogLines([formatRunStarted(subject)]);
 
         eventChainRef.current = Promise.resolve();
-        nodeStartedAtRef.current.clear();
+        toolStartedAtRef.current.clear();
 
         const stopStreaming = streamRun(run_id, {
-          onNodeStarted: (payload) => {
-            const node = payload.node as PipelineNodeId;
+          onAgentThought: (payload) => {
             enqueue(() => {
-              nodeStartedAtRef.current.set(node, Date.now());
-              dispatch({ type: "NODE_STARTED", node });
-              appendLog(formatNodeStarted(node));
+              dispatch({ type: "AGENT_THOUGHT", text: payload.text });
+              appendLog(formatAgentThought(payload.text));
             });
           },
-          onNodeFinished: (payload) => {
-            const node = payload.node as PipelineNodeId;
+          onToolCallStarted: (payload) => {
+            const tool = payload.tool as ToolId;
+            enqueue(() => {
+              toolStartedAtRef.current.set(tool, Date.now());
+              dispatch({ type: "TOOL_CALL_STARTED", tool });
+              appendLog(formatToolCallStarted(tool));
+            });
+          },
+          onToolCallFinished: (payload) => {
+            const tool = payload.tool as ToolId;
             enqueue(async () => {
-              const startedAt = nodeStartedAtRef.current.get(node) ?? Date.now();
+              const startedAt = toolStartedAtRef.current.get(tool) ?? Date.now();
               const delay = remainingDelay(Date.now() - startedAt);
               if (delay > 0) await sleep(delay);
               dispatch({
-                type: "NODE_FINISHED",
-                node,
+                type: "TOOL_CALL_FINISHED",
+                tool,
+                resultSummary: payload.result_summary,
                 error: payload.error,
-                summary: payload.output_summary,
               });
-              appendLog(formatNodeFinished(node, payload.duration_ms, payload.error, payload.output_summary));
+              appendLog(
+                formatToolCallFinished(tool, payload.result_summary, payload.duration_ms, payload.error)
+              );
             });
           },
           onRunCompleted: () => {
@@ -136,17 +145,19 @@ function App() {
   );
 
   const handleRunSample = useCallback(
-    (filename: string) => {
-      void runDocument(() => submitSampleDoc(filename));
+    (ticketId: string) => {
+      const ticket = sampleTickets.find((t) => t.ticket_id === ticketId);
+      void runTicket(ticket?.subject ?? `ticket #${ticketId}`, () => submitSampleTicket(ticketId));
     },
-    [runDocument]
+    [runTicket, sampleTickets]
   );
 
   const handleUpload = useCallback(
-    (file: File) => {
-      void runDocument(() => submitUpload(file));
+    (file: File, instructions: string, subject: string) => {
+      const displaySubject = subject || `Uploaded ticket: ${file.name}`;
+      void runTicket(displaySubject, () => submitUpload(file, instructions, subject));
     },
-    [runDocument]
+    [runTicket]
   );
 
   const handleReset = useCallback(() => {
@@ -161,12 +172,12 @@ function App() {
 
   const handleTicketNodeDragOver = useCallback(
     (e: React.DragEvent) => {
-      if (pipeline.running) return;
+      if (agent.running) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
       setIsDropTarget(true);
     },
-    [pipeline.running]
+    [agent.running]
   );
 
   const handleTicketNodeDragLeave = useCallback(() => {
@@ -178,14 +189,14 @@ function App() {
       e.preventDefault();
       e.stopPropagation();
       setIsDropTarget(false);
-      if (pipeline.running) return;
-      const filename = e.dataTransfer.getData("text/plain");
-      if (filename) handleRunSample(filename);
+      if (agent.running) return;
+      const ticketId = e.dataTransfer.getData("text/plain");
+      if (ticketId) handleRunSample(ticketId);
     },
-    [pipeline.running, handleRunSample]
+    [agent.running, handleRunSample]
   );
 
-  const diagramState = useMemo(() => deriveDiagramState(pipeline), [pipeline]);
+  const diagramState = useMemo(() => deriveDiagramState(agent), [agent]);
 
   const nodes: HubNodeType[] = useMemo(
     () =>
@@ -217,7 +228,7 @@ function App() {
   const edges: IntakeEdgeType[] = useMemo(
     () =>
       DIAGRAM_EDGES.map((spec) => {
-        const isPulsing = pipeline.activeEdgeId === spec.id;
+        const isPulsing = agent.activeEdgeId === spec.id;
         return {
           id: spec.id,
           source: spec.source,
@@ -226,23 +237,29 @@ function App() {
           data: {
             active: diagramState[spec.target].status !== "pending",
             pulses: isPulsing
-              ? [{ key: `pulse-${pipeline.runId}-${pipeline.pulseSeq}`, durationMs: 900 }]
+              ? [
+                  {
+                    key: `pulse-${agent.runId}-${agent.pulseSeq}`,
+                    durationMs: 900,
+                    reverse: agent.activeEdgeReverse,
+                  },
+                ]
               : [],
           },
         } satisfies IntakeEdgeType;
       }),
-    [pipeline.activeEdgeId, pipeline.pulseSeq, pipeline.runId, diagramState]
+    [agent.activeEdgeId, agent.activeEdgeReverse, agent.pulseSeq, agent.runId, diagramState]
   );
 
   return (
     <div className="app-root">
       <div className="controls-panel">
         <TicketPanel
-          sampleDocs={sampleDocs}
+          sampleTickets={sampleTickets}
           onRunSample={handleRunSample}
           onUpload={handleUpload}
           onReset={handleReset}
-          running={pipeline.running}
+          running={agent.running}
         />
       </div>
 
@@ -261,7 +278,7 @@ function App() {
           edgeTypes={EDGE_TYPES}
           nodeTypes={NODE_TYPES}
           fitView
-          fitViewOptions={{ padding: 0.35 }}
+          fitViewOptions={{ padding: 0.3 }}
           nodesDraggable={false}
           nodesConnectable={false}
           proOptions={{ hideAttribution: true }}
@@ -271,7 +288,7 @@ function App() {
       </div>
 
       <div className="debug-panel">
-        <ResultSummary record={lastResult} processingFilename={pipeline.running ? pipeline.filename : null} />
+        <ResultSummary record={lastResult} processingSubject={agent.running ? agent.ticketSubject : null} />
         <TerminalLog lines={logLines} />
       </div>
     </div>

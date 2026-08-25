@@ -1,17 +1,19 @@
-"""FastAPI app: upload a document -> run the LangGraph intake pipeline ->
-stream live progress over SSE -> list processed records for the dashboard.
+"""FastAPI app: hand the agent a ticket (instructions + an attached PDF) ->
+it plans and executes SOP lookup / PDF read / classification / extraction /
+validation / persist via tool calls, in whatever order it decides -> stream
+its reasoning + tool calls live over SSE -> list processed records for the
+dashboard.
 
-Diagnostics surface: `GET /api/runs/{run_id}` returns the full per-node
-trace (timing, LLM prompts/responses, validation outcome) for any run,
-`GET /api/health` reports which LLM client is active, and every request
-is logged to backend/data/sky_intake.log. This is the "go back and assess
-success" plumbing — a run's full story is reconstructable after the fact
-without re-running anything.
+Diagnostics surface: `GET /api/runs/{run_id}` returns the full per-run
+trace (thoughts, tool calls, timing, results) for any run, `GET /api/health`
+reports which model is active and whether the SOP RAG index loaded, and
+every request is logged to backend/data/sky_intake.log.
 """
 
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
 import os
 import uuid
@@ -19,15 +21,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from . import events
-from .graph import build_graph
-from .llm import build_llm_client
+from .agent import build_model, run_agent
 from .logging_conf import configure_logging
+from .models import Ticket
+from .sop_index import SopIndex
 from .store import Store
+from .tools import RunContext
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(_BACKEND_DIR / ".env")
@@ -37,7 +41,8 @@ configure_logging()
 logger = logging.getLogger("sky_intake.api")
 
 SOP_PATH = Path(__file__).resolve().parent.parent / "sop" / "compliance-intake.md"
-SAMPLE_DOCS_DIR = Path(__file__).resolve().parent.parent / "sample_docs"
+SAMPLE_TICKETS_DIR = Path(__file__).resolve().parent.parent / "sample_tickets"
+UPLOADS_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads"
 
 app = FastAPI(title="Sky Transport Intake Agent")
 app.add_middleware(
@@ -51,14 +56,25 @@ app.add_middleware(
 
 _db_path_override = os.environ.get("SKY_INTAKE_DB_PATH")
 store = Store(_db_path_override) if _db_path_override else Store()
-llm_client = build_llm_client()
 sop_text = SOP_PATH.read_text()
+sop_index = SopIndex(sop_text)
+
+_use_fake = os.environ.get("SKY_INTAKE_FAKE_LLM", "").lower() in ("1", "true", "yes")
+if _use_fake:
+    from .fake_agent import FakeAgentModel
+
+    model = FakeAgentModel()
+    logger.info("using FakeAgentModel (SKY_INTAKE_FAKE_LLM set)")
+else:
+    model = build_model()
+    logger.info("using %s", type(model).__name__)
 
 logger.info(
-    "startup: llm=%s db=%s sop_chars=%d",
-    type(llm_client).__name__,
+    "startup: model=%s db=%s sop_chars=%d sop_chunks=%d",
+    type(model).__name__,
     store.db_path,
     len(sop_text),
+    len(sop_index.chunks),
 )
 
 
@@ -66,22 +82,25 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-async def _run_pipeline(run_id: str, doc_id: str, filename: str, raw_text: str) -> None:
+def _load_sample_tickets() -> list[Ticket]:
+    tickets = []
+    for json_path in sorted(SAMPLE_TICKETS_DIR.glob("*.json")):
+        tickets.append(Ticket.model_validate_json(json_path.read_text()))
+    return tickets
+
+
+async def _run_pipeline(run_id: str, doc_id: str, ticket: Ticket, pdf_path: Path) -> None:
     loop = asyncio.get_running_loop()
 
     def publish(event_type: str, payload: dict) -> None:
         payload = {**payload, "run_id": run_id}
         loop.call_soon_threadsafe(events.publish, run_id, event_type, payload)
 
-    graph = build_graph(llm_client, sop_text, store, publish_event=publish)
-    state = {
-        "run_id": run_id,
-        "doc_id": doc_id,
-        "filename": filename,
-        "raw_text": raw_text,
-    }
+    ctx = RunContext(run_id=run_id, ticket=ticket, pdf_path=pdf_path, sop_index=sop_index, store=store)
     try:
-        final = await loop.run_in_executor(None, graph.invoke, state)
+        final = await loop.run_in_executor(
+            None, functools.partial(run_agent, ctx, model, publish_event=publish)
+        )
         store.finish_run(run_id, "completed", final["trace"], _now_iso())
         events.publish(
             run_id,
@@ -102,50 +121,82 @@ async def _run_pipeline(run_id: str, doc_id: str, filename: str, raw_text: str) 
         events.close(run_id)
 
 
-async def _start_run(filename: str, raw_text: str) -> dict:
+async def _start_run(ticket: Ticket, pdf_path: Path) -> dict:
     run_id = str(uuid.uuid4())
     doc_id = str(uuid.uuid4())
     events.register(run_id)
-    logger.info("run %s started for filename=%s (%d chars)", run_id, filename, len(raw_text))
-    asyncio.create_task(_run_pipeline(run_id, doc_id, filename, raw_text))
-    return {"run_id": run_id, "doc_id": doc_id, "filename": filename}
+    store.create_run(
+        run_id,
+        ticket.attachment_filename,
+        _now_iso(),
+        ticket_subject=ticket.subject,
+        ticket_instructions=ticket.instructions,
+    )
+    logger.info(
+        "run %s started for ticket=%s attachment=%s",
+        run_id,
+        ticket.ticket_id,
+        ticket.attachment_filename,
+    )
+    asyncio.create_task(_run_pipeline(run_id, doc_id, ticket, pdf_path))
+    return {"run_id": run_id, "doc_id": doc_id, "filename": ticket.attachment_filename}
 
 
 @app.get("/api/health")
 async def health() -> dict:
     return {
         "status": "ok",
-        "llm_client": type(llm_client).__name__,
+        "model": type(model).__name__,
         "sop_loaded_chars": len(sop_text),
+        "sop_chunks": len(sop_index.chunks),
         "db_path": str(store.db_path),
     }
 
 
-@app.get("/api/sample-docs")
-async def list_sample_docs() -> list[dict]:
-    docs = []
-    for p in sorted(SAMPLE_DOCS_DIR.glob("*.txt")):
-        text = p.read_text()
-        docs.append({"filename": p.name, "preview": text[:160], "full_text": text})
-    return docs
+@app.get("/api/sample-tickets")
+async def list_sample_tickets() -> list[dict]:
+    return [t.model_dump() for t in _load_sample_tickets()]
 
 
-@app.post("/api/tickets/sample/{filename}")
-async def submit_sample(filename: str) -> dict:
-    path = SAMPLE_DOCS_DIR / filename
-    if not path.exists() or path.parent != SAMPLE_DOCS_DIR:
-        raise HTTPException(404, f"no sample doc named {filename!r}")
-    return await _start_run(filename, path.read_text())
+@app.post("/api/tickets/sample/{ticket_id}")
+async def submit_sample_ticket(ticket_id: str) -> dict:
+    json_path = SAMPLE_TICKETS_DIR / f"{ticket_id}.json"
+    if not json_path.exists() or json_path.parent != SAMPLE_TICKETS_DIR:
+        raise HTTPException(404, f"no sample ticket {ticket_id!r}")
+    ticket = Ticket.model_validate_json(json_path.read_text())
+    pdf_path = SAMPLE_TICKETS_DIR / ticket.attachment_filename
+    return await _start_run(ticket, pdf_path)
 
 
 @app.post("/api/tickets")
-async def submit_ticket(file: UploadFile) -> dict:
+async def submit_ticket(
+    file: UploadFile,
+    instructions: str = Form(...),
+    subject: str | None = Form(None),
+    priority: str = Form("Normal"),
+    requester: str | None = Form(None),
+) -> dict:
+    filename = file.filename or "upload.pdf"
+    if not filename.lower().endswith(".pdf"):
+        raise HTTPException(400, "only PDF attachments are accepted")
     raw_bytes = await file.read()
-    try:
-        raw_text = raw_bytes.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise HTTPException(400, f"could not decode {file.filename} as UTF-8 text: {exc}")
-    return await _start_run(file.filename or "upload.txt", raw_text)
+    if not raw_bytes.startswith(b"%PDF-"):
+        raise HTTPException(400, f"{filename} does not look like a valid PDF")
+
+    run_id_prefix = uuid.uuid4().hex[:8]
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    pdf_path = UPLOADS_DIR / f"{run_id_prefix}-{filename}"
+    pdf_path.write_bytes(raw_bytes)
+
+    ticket = Ticket(
+        ticket_id=run_id_prefix,
+        subject=subject or f"Uploaded ticket: {filename}",
+        instructions=instructions,
+        priority=priority,
+        requester=requester,
+        attachment_filename=filename,
+    )
+    return await _start_run(ticket, pdf_path)
 
 
 @app.get("/api/runs/{run_id}/stream")

@@ -2,7 +2,7 @@ import type { RecordRow } from "../types";
 
 interface ResultSummaryProps {
   record: RecordRow | null;
-  processingFilename: string | null;
+  processingSubject: string | null;
 }
 
 const HEADLINE_FIELD_ORDER = [
@@ -18,13 +18,13 @@ const HEADLINE_FIELD_ORDER = [
  * everything a viewer actually wants at a glance after a run. The full
  * per-node trace is still available server-side (GET /api/runs/{id}) for
  * anyone who needs it, just not surfaced in this UI anymore. */
-export function ResultSummary({ record, processingFilename }: ResultSummaryProps) {
-  if (!record && !processingFilename) return null;
+export function ResultSummary({ record, processingSubject }: ResultSummaryProps) {
+  if (!record && !processingSubject) return null;
 
   if (!record) {
     return (
       <div className="result-summary">
-        <h3>Processing {processingFilename}…</h3>
+        <h3>Processing: {processingSubject}…</h3>
       </div>
     );
   }
