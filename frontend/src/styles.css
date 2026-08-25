@@ -175,6 +175,26 @@ button:disabled { cursor: not-allowed; opacity: .35; }
   50% { box-shadow: 0 0 0 9px rgba(17,17,17,.03); }
 }
 
+/* notify_human gets an extra "notification going off" flash on top of the
+   normal is-active look: the circle strobes black a couple of times, then
+   settles back to the plain unfilled is-active state (border pulse keeps
+   running via the `pulse` animation alongside it). Scoped to this one node
+   via data-node-id so no other spoke picks up the flash. */
+.hub-node.is-active[data-node-id="notify_human"] .hub-node-circle {
+  animation: pulse 1.1s ease-in-out infinite, notify-flash .5s ease-in-out 3;
+}
+.hub-node.is-active[data-node-id="notify_human"] .hub-node-circle svg {
+  animation: notify-flash-icon .5s ease-in-out 3;
+}
+@keyframes notify-flash {
+  0%, 100% { background: #fff; }
+  50% { background: #111; }
+}
+@keyframes notify-flash-icon {
+  0%, 100% { color: #111; }
+  50% { color: #fff; }
+}
+
 .token-glyph { color: #111; }
 .token-glyph rect, .token-glyph path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .token-glyph circle.token-bg { fill: #fff; stroke: #111; stroke-width: 1.5; }

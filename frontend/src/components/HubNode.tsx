@@ -73,6 +73,7 @@ export function HubNode({ data, selected }: NodeProps<HubNodeType>) {
   return (
     <div
       className={`hub-node is-${data.status}${writtenClass}${dropZoneClass}`}
+      data-node-id={data.diagramId}
       style={{ width: data.size, height: data.size }}
       aria-label={`${data.label}, ${data.statusLine}`}
       onDragOver={data.isDropZone ? data.onDropZoneDragOver : undefined}
