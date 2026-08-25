@@ -8,7 +8,8 @@ reasoning into `ctx.state` (see models.AgentRunState) purely so it's
 captured for the trace/UI, not as a second opinion; `validate` and
 `persist` are the deterministic, non-agentic steps — `validate` mints the
 short-lived unlock_token (app/tokens.py) that `persist` must redeem before
-it will write anything to the store.
+it will write anything to the store. `notify_human` is a stub the agent
+calls after persist when validate flagged needs_review.
 """
 
 from __future__ import annotations
@@ -153,6 +154,16 @@ def build_tools(ctx: RunContext) -> list[StructuredTool]:
         )
         return json.dumps({"record_id": record_id})
 
+    def notify_human(reason: str) -> str:
+        """Alert a human reviewer that this ticket needs their attention.
+        Call this once, after persist succeeds, if your most recent validate
+        call returned needs_review: true — pass a short reason (e.g. why the
+        document was flagged). Skip this entirely if needs_review was false.
+        Stub: there's no real notification channel wired up yet, so this
+        just logs the request."""
+        logger.info("human review requested for run %s: %s", ctx.run_id, reason)
+        return json.dumps({"notified": True})
+
     return [
         StructuredTool.from_function(
             func=search_sop, name="search_sop", description=search_sop.__doc__
@@ -174,4 +185,7 @@ def build_tools(ctx: RunContext) -> list[StructuredTool]:
             description=validate_extraction.__doc__,
         ),
         StructuredTool.from_function(func=persist, name="persist", description=persist.__doc__),
+        StructuredTool.from_function(
+            func=notify_human, name="notify_human", description=notify_human.__doc__
+        ),
     ]

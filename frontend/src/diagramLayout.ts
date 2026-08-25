@@ -1,7 +1,14 @@
 import type { AgentState } from "./agentReducer";
 import type { NodeRunStatus } from "./types";
 
-export type DiagramNodeId = "ticket" | "sop_search" | "pdf_reader" | "agent" | "validate" | "database";
+export type DiagramNodeId =
+  | "ticket"
+  | "sop_search"
+  | "pdf_reader"
+  | "agent"
+  | "validate"
+  | "database"
+  | "notify_human";
 
 /** Which side of a node's box a handle sits on — matches @xyflow/react's
  * Position enum values so `in-${side}`/`out-${side}` line up with the
@@ -50,16 +57,18 @@ export interface DiagramNodeSpec {
  * own spoke (see agentReducer's SPOKE_TOOLS comment); they surface as the
  * hub's status line instead.
  *
- * Layout: the agent hub stays centered, with its four spokes arranged so
+ * Layout: the agent hub stays centered, with its five spokes arranged so
  * every edge leaves from the side of the box that actually faces its
  * target — no edge has to loop back around a node to reach a handle on the
  * wrong side. ticket and pdf_reader sit left of the hub and both connect
  * through its single left-side handle pair, so their edges visually merge
- * into one line approaching the hub. sop_search sits directly above.
- * validate and database sit right of the hub — unlike the left pair they
- * get their own separate right-side handles (see agent's sourceSides)
- * rather than sharing one, since they're two unrelated outputs and
- * shouldn't read as a single merged path the way ticket/pdf do. */
+ * into one line approaching the hub. sop_search sits directly above, and
+ * notify_human sits directly below — the same top/bottom arrangement,
+ * mirrored. validate and database sit right of the hub — unlike the left
+ * pair they get their own separate right-side handles (see agent's
+ * sourceSides) rather than sharing one, since they're two unrelated
+ * outputs and shouldn't read as a single merged path the way ticket/pdf
+ * do. */
 export const DIAGRAM_NODES: DiagramNodeSpec[] = [
   { id: "ticket", label: "Ticket ingress", size: 76, x: 0, y: 56 },
   { id: "pdf_reader", label: "Read PDF skill", size: 76, x: 0, y: 256, targetSides: ["right"] },
@@ -74,12 +83,14 @@ export const DIAGRAM_NODES: DiagramNodeSpec[] = [
     sourceSides: [
       "left",
       "top",
+      "bottom",
       { side: "right", id: "validate", offset: 38 },
       { side: "right", id: "database", offset: 62 },
     ],
   },
   { id: "validate", label: "Validation tool", size: 76, x: 650, y: 56 },
   { id: "database", label: "Internal Database", size: 76, x: 650, y: 256, writesData: true },
+  { id: "notify_human", label: "Notify human", size: 76, x: 300, y: 300, targetSides: ["top"] },
 ];
 
 export interface DiagramEdgeSpec {
@@ -111,6 +122,13 @@ export const DIAGRAM_EDGES: DiagramEdgeSpec[] = [
     source: "agent",
     target: "database",
     sourceSide: { side: "right", id: "database" },
+  },
+  {
+    id: "agent-notify_human",
+    source: "agent",
+    target: "notify_human",
+    sourceSide: "bottom",
+    targetSide: "top",
   },
 ];
 
@@ -148,6 +166,10 @@ export function deriveDiagramState(agent: AgentState): DiagramState {
     database: {
       status: agent.toolStatuses.persist.status,
       statusLine: agent.toolStatuses.persist.label,
+    },
+    notify_human: {
+      status: agent.toolStatuses.notify_human.status,
+      statusLine: agent.toolStatuses.notify_human.label,
     },
   };
 }
