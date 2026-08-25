@@ -86,6 +86,23 @@ describe("pipelineReducer", () => {
     expect(ok.statuses.validate.label).toBe("ok");
   });
 
+  it("returns to idle statuses on RESET", () => {
+    let state = pipelineReducer(initialPipelineState, {
+      type: "RUN_STARTED",
+      runId: "r1",
+      filename: "d",
+    });
+    state = pipelineReducer(state, {
+      type: "NODE_FINISHED",
+      node: "persist",
+      error: null,
+      summary: { record_id: 1 },
+    });
+    expect(state.statuses.persist.status).toBe("done");
+    state = pipelineReducer(state, { type: "RESET" });
+    expect(state).toEqual(initialPipelineState);
+  });
+
   it("sets running false on RUN_DONE and RUN_ERROR", () => {
     const started = pipelineReducer(initialPipelineState, {
       type: "RUN_STARTED",

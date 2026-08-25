@@ -91,6 +91,15 @@ def test_reset_clears_records(client):
     assert client.get("/api/records").json() == []
 
 
+def test_cors_allows_any_localhost_port(client):
+    # Vite picks the next free port when one is taken (observed live: landed
+    # on 5174 instead of the assumed 5173), so CORS must not hardcode a
+    # single port or the dashboard silently fails every fetch with a CORS
+    # error that looks identical to "backend is down".
+    resp = client.get("/api/health", headers={"Origin": "http://127.0.0.1:5174"})
+    assert resp.headers.get("access-control-allow-origin") == "http://127.0.0.1:5174"
+
+
 def test_upload_non_utf8_rejected(client):
     resp = client.post(
         "/api/tickets",

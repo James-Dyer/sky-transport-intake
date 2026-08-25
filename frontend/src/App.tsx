@@ -121,6 +121,7 @@ function App() {
         refreshRecords();
         setFullTrace([]);
         setSelectedNode(null);
+        dispatch({ type: "RESET" });
       })
       .catch((err) => setBanner(String(err)));
   }, [refreshRecords]);

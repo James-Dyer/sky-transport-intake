@@ -42,7 +42,9 @@ SAMPLE_DOCS_DIR = Path(__file__).resolve().parent.parent / "sample_docs"
 app = FastAPI(title="Sky Transport Intake Agent")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    # Vite picks the next free port (5173, 5174, ...) when one is taken, so
+    # pin by hostname/scheme rather than a single hardcoded port.
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
     allow_methods=["*"],
     allow_headers=["*"],
 )

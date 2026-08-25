@@ -29,7 +29,8 @@ export type PipelineAction =
   | { type: "NODE_STARTED"; node: PipelineNodeId }
   | { type: "NODE_FINISHED"; node: PipelineNodeId; error: string | null; summary: Record<string, unknown> }
   | { type: "RUN_DONE" }
-  | { type: "RUN_ERROR"; message: string };
+  | { type: "RUN_ERROR"; message: string }
+  | { type: "RESET" };
 
 function summarize(node: PipelineNodeId, summary: Record<string, unknown>): string {
   switch (node) {
@@ -89,6 +90,8 @@ export function pipelineReducer(state: PipelineState, action: PipelineAction): P
       return { ...state, running: false };
     case "RUN_ERROR":
       return { ...state, running: false, error: action.message };
+    case "RESET":
+      return initialPipelineState;
     default:
       return state;
   }
