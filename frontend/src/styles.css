@@ -226,7 +226,7 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .terminal-log .dot-red { background: #e00000; }
 .terminal-log header strong { margin-left: 5px; font-size: 9px; letter-spacing: .06em; font-weight: 600; }
 .terminal-output {
-  display: grid; gap: 4px; padding: 12px; max-height: 220px; overflow-y: auto;
+  display: grid; gap: 4px; padding: 12px; max-height: min(440px, 65vh); overflow-y: auto;
   font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 .terminal-line { overflow-wrap: anywhere; }
