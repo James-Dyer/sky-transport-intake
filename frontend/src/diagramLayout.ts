@@ -61,9 +61,9 @@ export interface DiagramNodeSpec {
  * rather than sharing one, since they're two unrelated outputs and
  * shouldn't read as a single merged path the way ticket/pdf do. */
 export const DIAGRAM_NODES: DiagramNodeSpec[] = [
-  { id: "ticket", label: "Ticket received", size: 76, x: 0, y: 56 },
-  { id: "pdf_reader", label: "Read attached PDF", size: 76, x: 0, y: 256, targetSides: ["right"] },
-  { id: "sop_search", label: "SOP search (RAG)", size: 76, x: 326, y: -40, targetSides: ["bottom"] },
+  { id: "ticket", label: "Ticket ingress", size: 76, x: 0, y: 56 },
+  { id: "pdf_reader", label: "Read PDF skill", size: 76, x: 0, y: 256, targetSides: ["right"] },
+  { id: "sop_search", label: "Standard Operating Procedure Database (RAG)", size: 76, x: 326, y: -40, targetSides: ["bottom"] },
   {
     id: "agent",
     label: "AI intake agent",
@@ -78,8 +78,8 @@ export const DIAGRAM_NODES: DiagramNodeSpec[] = [
       { side: "right", id: "database", offset: 62 },
     ],
   },
-  { id: "validate", label: "Validate against SOP rules", size: 76, x: 650, y: 56 },
-  { id: "database", label: "Record filed", size: 76, x: 650, y: 256, writesData: true },
+  { id: "validate", label: "Validation tool", size: 76, x: 650, y: 56 },
+  { id: "database", label: "Internal Database", size: 76, x: 650, y: 256, writesData: true },
 ];
 
 export interface DiagramEdgeSpec {
