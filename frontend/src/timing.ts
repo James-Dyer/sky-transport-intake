@@ -6,7 +6,7 @@
  * Purely a presentation smoothing: real per-node timing is still what's
  * shown in the terminal log and available via the API; this only delays
  * when the UI reflects "finished," not what it reports as having happened. */
-export const MIN_ACTIVE_MS = 650;
+export const MIN_ACTIVE_MS = 1500;
 
 export function remainingDelay(elapsedMs: number, minMs: number = MIN_ACTIVE_MS): number {
   return Math.max(0, minMs - elapsedMs);

@@ -150,7 +150,7 @@ export function agentReducer(state: AgentState, action: AgentAction): AgentState
         agentStatusLine: !isSpoke ? label : state.agentStatusLine,
         pulseSeq: edge ? state.pulseSeq + 1 : state.pulseSeq,
         activeEdgeId: edge ?? state.activeEdgeId,
-        activeEdgeReverse: action.tool !== "persist",
+        activeEdgeReverse: true,
       };
     }
     case "RUN_DONE":

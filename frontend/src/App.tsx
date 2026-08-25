@@ -20,8 +20,6 @@ import {
   formatRunCompleted,
   formatRunFailed,
   formatRunStarted,
-  formatToolCallFinished,
-  formatToolCallStarted,
   type LogLine,
 } from "./terminalLog";
 import { remainingDelay } from "./timing";
@@ -94,7 +92,6 @@ function App() {
             enqueue(() => {
               toolStartedAtRef.current.set(tool, Date.now());
               dispatch({ type: "TOOL_CALL_STARTED", tool });
-              appendLog(formatToolCallStarted(tool));
             });
           },
           onToolCallFinished: (payload) => {
@@ -109,9 +106,6 @@ function App() {
                 resultSummary: payload.result_summary,
                 error: payload.error,
               });
-              appendLog(
-                formatToolCallFinished(tool, payload.result_summary, payload.duration_ms, payload.error)
-              );
             });
           },
           onRunCompleted: () => {
@@ -258,7 +252,7 @@ function App() {
               ? [
                   {
                     key: `pulse-${agent.runId}-${agent.pulseSeq}`,
-                    durationMs: 900,
+                    durationMs: 1500,
                     reverse: agent.activeEdgeReverse,
                   },
                 ]

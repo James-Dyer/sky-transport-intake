@@ -60,7 +60,7 @@ export function IntakeEdge({
           <animateMotion
             path={path}
             begin={`${pulse.delayMs ?? 0}ms`}
-            dur={`${pulse.durationMs ?? 620}ms`}
+            dur={`${pulse.durationMs ?? 1500}ms`}
             fill="freeze"
             calcMode="spline"
             keyPoints={pulse.reverse ? "1;0" : "0;1"}
@@ -72,7 +72,7 @@ export function IntakeEdge({
             values="0;1;1;0"
             keyTimes="0;0.12;0.82;1"
             begin={`${pulse.delayMs ?? 0}ms`}
-            dur={`${pulse.durationMs ?? 620}ms`}
+            dur={`${pulse.durationMs ?? 1500}ms`}
             fill="freeze"
           />
         </g>

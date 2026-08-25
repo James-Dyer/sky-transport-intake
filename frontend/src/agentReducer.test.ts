@@ -42,7 +42,7 @@ describe("agentReducer", () => {
     expect(state.activeEdgeReverse).toBe(true);
   });
 
-  it("does not reverse the persist edge (agent -> database is one-directional)", () => {
+  it("reverses the persist edge too, as a filed-record confirmation flowing back", () => {
     let state = started();
     state = agentReducer(state, { type: "TOOL_CALL_STARTED", tool: "persist" });
     state = agentReducer(state, {
@@ -53,7 +53,7 @@ describe("agentReducer", () => {
     });
     expect(state.toolStatuses.persist.status).toBe("done");
     expect(state.toolStatuses.persist.label).toBe("record #7");
-    expect(state.activeEdgeReverse).toBe(false);
+    expect(state.activeEdgeReverse).toBe(true);
   });
 
   it("marks a spoke tool errored and surfaces the error text as its label", () => {
