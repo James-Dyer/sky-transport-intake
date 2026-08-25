@@ -1,6 +1,38 @@
 import { useRef, useState } from "react";
 import type { SampleTicket } from "../types";
 
+const DRAG_THUMB_TITLE_LIMIT = 22;
+
+function truncateTitle(title: string, limit = DRAG_THUMB_TITLE_LIMIT) {
+  return title.length > limit ? `${title.slice(0, limit - 1)}…` : title;
+}
+
+/** Native HTML5 drag only lets you swap the drag image once, at dragstart —
+ * there's no way to restyle the element being dragged after the fact, so we
+ * build a standalone "document" node off-screen and hand it to
+ * setDragImage. It's removed on the next tick once the browser has taken
+ * its snapshot. */
+function buildDragThumbnail(title: string) {
+  const el = document.createElement("div");
+  el.className = "ticket-drag-thumb";
+
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("width", "22");
+  icon.setAttribute("height", "22");
+  icon.innerHTML =
+    '<path d="M5 2h9l5 5v15H5z" fill="#fff" stroke="#111" stroke-width="1.2"/>' +
+    '<path d="M14 2v5h5" fill="none" stroke="#111" stroke-width="1.2"/>';
+
+  const label = document.createElement("span");
+  label.textContent = truncateTitle(title);
+
+  el.appendChild(icon);
+  el.appendChild(label);
+  document.body.appendChild(el);
+  return el;
+}
+
 interface TicketPanelProps {
   sampleTickets: SampleTicket[];
   onRunSample: (ticketId: string) => void;
@@ -60,6 +92,9 @@ export function TicketPanel({
                   }
                   e.dataTransfer.setData("text/plain", ticket.ticket_id);
                   e.dataTransfer.effectAllowed = "copy";
+                  const thumb = buildDragThumbnail(ticket.subject);
+                  e.dataTransfer.setDragImage(thumb, 14, 14);
+                  window.setTimeout(() => thumb.remove(), 0);
                   onCardDragStart();
                 }}
                 onDragEnd={onCardDragEnd}
