@@ -148,7 +148,7 @@ button:disabled { cursor: not-allowed; opacity: .35; }
   border-style: solid; border-color: #111; background: #111;
   box-shadow: 0 0 0 6px rgba(17,17,17,.12); transform: scale(1.08);
 }
-.hub-node.is-drop-active .hub-node-circle svg { color: #fff; }
+.hub-node.is-drop-zone.is-drop-active .hub-node-circle svg { color: #fff; }
 .hub-node.is-drop-active .hub-node-label strong { color: #111; }
 .hub-node.is-drop-active .hub-node-status { color: #111; font-weight: 700; }
 .hub-node.is-drop-active .hub-node-status::after { content: "— release to submit"; color: #111; font-weight: 700; }
