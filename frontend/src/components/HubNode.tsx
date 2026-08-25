@@ -1,5 +1,5 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
-import type { DiagramNodeId, HandleSide } from "../diagramLayout";
+import { handleSuffix, type DiagramNodeId, type HandleSide, type HandleSpec } from "../diagramLayout";
 import type { NodeRunStatus } from "../types";
 import { NodeIcon } from "./NodeIcon";
 
@@ -10,16 +10,26 @@ const POSITION_BY_SIDE: Record<HandleSide, Position> = {
   bottom: Position.Bottom,
 };
 
+/** CSS offset property for nudging a handle along its side, away from the
+ * default centered position — left/right sides run vertically so they're
+ * offset via `top`, top/bottom sides run horizontally so via `left`. */
+const OFFSET_PROPERTY_BY_SIDE: Record<HandleSide, "top" | "left"> = {
+  left: "top",
+  right: "top",
+  top: "left",
+  bottom: "left",
+};
+
 export interface HubNodeData extends Record<string, unknown> {
   diagramId: DiagramNodeId;
   label: string;
   statusLine: string;
   status: NodeRunStatus;
   size: number;
-  /** Sides to render a target handle on, id `in-<side>`. Defaults to ["left"]. */
-  targetSides?: HandleSide[];
-  /** Sides to render a source handle on, id `out-<side>`. Defaults to ["right"]. */
-  sourceSides?: HandleSide[];
+  /** Handles to render as targets, id `in-<suffix>`. Defaults to ["left"]. */
+  targetSides?: HandleSpec[];
+  /** Handles to render as sources, id `out-<suffix>`. Defaults to ["right"]. */
+  sourceSides?: HandleSpec[];
   /** True if the agent writes to this resource — see the "is-written" class below. */
   writesData?: boolean;
   isDropZone?: boolean;
@@ -28,6 +38,11 @@ export interface HubNodeData extends Record<string, unknown> {
   onDropZoneDragOver?: (e: React.DragEvent) => void;
   onDropZoneDragLeave?: (e: React.DragEvent) => void;
   onDropZoneDrop?: (e: React.DragEvent) => void;
+}
+
+function handleOffsetStyle(spec: HandleSpec): React.CSSProperties | undefined {
+  if (typeof spec === "string" || spec.offset === undefined) return undefined;
+  return { [OFFSET_PROPERTY_BY_SIDE[spec.side]]: `${spec.offset}%` };
 }
 
 export type HubNodeType = Node<HubNodeData, "hub">;
@@ -64,8 +79,15 @@ export function HubNode({ data, selected }: NodeProps<HubNodeType>) {
       onDragLeave={data.isDropZone ? data.onDropZoneDragLeave : undefined}
       onDrop={data.isDropZone ? data.onDropZoneDrop : undefined}
     >
-      {targetSides.map((side) => (
-        <Handle key={`in-${side}`} id={`in-${side}`} type="target" position={POSITION_BY_SIDE[side]} isConnectable={false} />
+      {targetSides.map((spec) => (
+        <Handle
+          key={`in-${handleSuffix(spec)}`}
+          id={`in-${handleSuffix(spec)}`}
+          type="target"
+          position={POSITION_BY_SIDE[typeof spec === "string" ? spec : spec.side]}
+          style={handleOffsetStyle(spec)}
+          isConnectable={false}
+        />
       ))}
       <div
         className={`hub-node-circle${selected ? " is-selected" : ""}`}
@@ -73,8 +95,15 @@ export function HubNode({ data, selected }: NodeProps<HubNodeType>) {
       >
         <NodeIcon node={data.diagramId} />
       </div>
-      {sourceSides.map((side) => (
-        <Handle key={`out-${side}`} id={`out-${side}`} type="source" position={POSITION_BY_SIDE[side]} isConnectable={false} />
+      {sourceSides.map((spec) => (
+        <Handle
+          key={`out-${handleSuffix(spec)}`}
+          id={`out-${handleSuffix(spec)}`}
+          type="source"
+          position={POSITION_BY_SIDE[typeof spec === "string" ? spec : spec.side]}
+          style={handleOffsetStyle(spec)}
+          isConnectable={false}
+        />
       ))}
       <div className="hub-node-label" style={{ top: data.size + 8 }}>
         <strong>{data.label}</strong>

@@ -10,18 +10,31 @@ export type DiagramNodeId = "ticket" | "sop_search" | "pdf_reader" | "agent" | "
  * React Flow dependency. */
 export type HandleSide = "left" | "right" | "top" | "bottom";
 
+/** A handle slot on a node. A bare HandleSide is the common case — one
+ * centered handle on that side, id `<in|out>-<side>`. Multiple distinct
+ * edges landing on the same side (e.g. agent's two right-side outputs to
+ * validate and database) need their own separate anchor points instead of
+ * converging on one, so those use the object form: `id` makes the handle
+ * id unique (`<in|out>-<side>-<id>`), and `offset` (0-100, percent along
+ * the side, default 50/centered) spaces them apart. */
+export type HandleSpec = HandleSide | { side: HandleSide; id: string; offset?: number };
+
+export function handleSuffix(spec: HandleSpec): string {
+  return typeof spec === "string" ? spec : `${spec.side}-${spec.id}`;
+}
+
 export interface DiagramNodeSpec {
   id: DiagramNodeId;
   label: string;
   size: number;
   x: number;
   y: number;
-  /** Sides that render a target ("in-<side>") handle. Defaults to ["left"]
+  /** Handles that render as a target ("in-<suffix>"). Defaults to ["left"]
    * when omitted — most nodes only ever receive an edge from their left. */
-  targetSides?: HandleSide[];
-  /** Sides that render a source ("out-<side>") handle. Defaults to
+  targetSides?: HandleSpec[];
+  /** Handles that render as a source ("out-<suffix>"). Defaults to
    * ["right"] when omitted. */
-  sourceSides?: HandleSide[];
+  sourceSides?: HandleSpec[];
   /** True if the agent writes to / modifies this resource, as opposed to
    * just reading it. Drives the "blacked out" done styling — read-only
    * nodes (and the agent hub itself) finish in a plain "done" look instead,
@@ -43,8 +56,10 @@ export interface DiagramNodeSpec {
  * wrong side. ticket and pdf_reader sit left of the hub and both connect
  * through its single left-side handle pair, so their edges visually merge
  * into one line approaching the hub. sop_search sits directly above.
- * validate and database sit right of the hub, both through its single
- * right-side handle pair, mirroring the left merge. */
+ * validate and database sit right of the hub — unlike the left pair they
+ * get their own separate right-side handles (see agent's sourceSides)
+ * rather than sharing one, since they're two unrelated outputs and
+ * shouldn't read as a single merged path the way ticket/pdf do. */
 export const DIAGRAM_NODES: DiagramNodeSpec[] = [
   { id: "ticket", label: "Ticket received", size: 76, x: 0, y: 56 },
   { id: "pdf_reader", label: "Read attached PDF", size: 76, x: 0, y: 256, targetSides: ["right"] },
@@ -56,7 +71,12 @@ export const DIAGRAM_NODES: DiagramNodeSpec[] = [
     x: 300,
     y: 130,
     targetSides: ["left"],
-    sourceSides: ["left", "top", "right"],
+    sourceSides: [
+      "left",
+      "top",
+      { side: "right", id: "validate", offset: 38 },
+      { side: "right", id: "database", offset: 62 },
+    ],
   },
   { id: "validate", label: "Validate against SOP rules", size: 76, x: 650, y: 56 },
   { id: "database", label: "Record filed", size: 76, x: 650, y: 256, writesData: true },
@@ -66,20 +86,32 @@ export interface DiagramEdgeSpec {
   id: string;
   source: DiagramNodeId;
   target: DiagramNodeId;
-  /** Which of the source node's handles this edge leaves from. Defaults to
-   * "right". */
-  sourceSide?: HandleSide;
-  /** Which of the target node's handles this edge arrives at. Defaults to
-   * "left". */
-  targetSide?: HandleSide;
+  /** Which of the source node's handles this edge leaves from — a
+   * HandleSpec matching one declared in the source node's sourceSides.
+   * Defaults to "right". */
+  sourceSide?: HandleSpec;
+  /** Which of the target node's handles this edge arrives at — a
+   * HandleSpec matching one declared in the target node's targetSides.
+   * Defaults to "left". */
+  targetSide?: HandleSpec;
 }
 
 export const DIAGRAM_EDGES: DiagramEdgeSpec[] = [
   { id: "ticket-agent", source: "ticket", target: "agent" },
   { id: "agent-sop_search", source: "agent", target: "sop_search", sourceSide: "top", targetSide: "bottom" },
   { id: "agent-pdf_reader", source: "agent", target: "pdf_reader", sourceSide: "left", targetSide: "right" },
-  { id: "agent-validate", source: "agent", target: "validate" },
-  { id: "agent-database", source: "agent", target: "database" },
+  {
+    id: "agent-validate",
+    source: "agent",
+    target: "validate",
+    sourceSide: { side: "right", id: "validate" },
+  },
+  {
+    id: "agent-database",
+    source: "agent",
+    target: "database",
+    sourceSide: { side: "right", id: "database" },
+  },
 ];
 
 export interface DiagramNodeState {

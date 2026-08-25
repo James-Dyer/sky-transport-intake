@@ -14,7 +14,7 @@ import { HubNode, type HubNodeType } from "./components/HubNode";
 import { ResultSummary } from "./components/ResultSummary";
 import { TerminalLog } from "./components/TerminalLog";
 import { TicketPanel } from "./components/TicketPanel";
-import { DIAGRAM_EDGES, DIAGRAM_NODES, deriveDiagramState } from "./diagramLayout";
+import { DIAGRAM_EDGES, DIAGRAM_NODES, deriveDiagramState, handleSuffix } from "./diagramLayout";
 import {
   formatAgentThought,
   formatRunCompleted,
@@ -254,8 +254,8 @@ function App() {
           id: spec.id,
           source: spec.source,
           target: spec.target,
-          sourceHandle: `out-${spec.sourceSide ?? "right"}`,
-          targetHandle: `in-${spec.targetSide ?? "left"}`,
+          sourceHandle: `out-${handleSuffix(spec.sourceSide ?? "right")}`,
+          targetHandle: `in-${handleSuffix(spec.targetSide ?? "left")}`,
           type: "intake",
           data: {
             active: diagramState[spec.target].status !== "pending",
