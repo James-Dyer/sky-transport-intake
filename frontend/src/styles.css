@@ -127,6 +127,27 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .tag.deadline { background: #111; color: #fff; }
 .empty-state { padding: 24px; text-align: center; color: #999; font-size: 12px; }
 
+.terminal-log {
+  border: 1px solid #111; background: #111; color: #f4f4f4; margin-bottom: 16px;
+  box-shadow: 4px 4px 0 #111;
+}
+.terminal-log header {
+  display: flex; align-items: center; gap: 5px; height: 28px;
+  border-bottom: 1px solid #333; padding: 0 9px; color: #8b8b8b;
+}
+.terminal-log .dot { width: 7px; height: 7px; border-radius: 50%; background: #444; }
+.terminal-log .dot-red { background: #e00000; }
+.terminal-log header strong { margin-left: 5px; font-size: 9px; letter-spacing: .06em; font-weight: 600; }
+.terminal-output {
+  display: grid; gap: 4px; padding: 12px; max-height: 150px; overflow-y: auto;
+  font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.terminal-line { overflow-wrap: anywhere; }
+.terminal-line.info { color: #d4d4d4; }
+.terminal-line.success { color: #7ee787; }
+.terminal-line.error { color: #ff7b72; }
+.terminal-line.muted { color: #6e6e6e; font-style: italic; }
+
 .trace-entry { border-top: 1px solid #ddd; padding: 10px 0; font-size: 11px; }
 .trace-entry:first-child { border-top: 0; }
 .trace-entry h4 { margin: 0 0 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }

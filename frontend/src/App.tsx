@@ -15,7 +15,16 @@ import { DebugPanel } from "./components/DebugPanel";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
 import { IntakeFlowNode, type IntakeFlowNodeType } from "./components/IntakeFlowNode";
 import { RecordsTable } from "./components/RecordsTable";
+import { TerminalLog } from "./components/TerminalLog";
 import { initialPipelineState, pipelineReducer } from "./pipelineReducer";
+import {
+  formatNodeFinished,
+  formatNodeStarted,
+  formatRunCompleted,
+  formatRunFailed,
+  formatRunStarted,
+  type LogLine,
+} from "./terminalLog";
 import { PIPELINE_NODES, type HealthInfo, type NodeTrace, type PipelineNodeId, type RecordRow, type SampleDoc } from "./types";
 
 const NODE_LABELS: Record<PipelineNodeId, string> = {
@@ -40,6 +49,11 @@ function App() {
   const [fullTrace, setFullTrace] = useState<NodeTrace[]>([]);
   const [selectedNode, setSelectedNode] = useState<PipelineNodeId | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [logLines, setLogLines] = useState<LogLine[]>([]);
+
+  const appendLog = useCallback((l: LogLine) => {
+    setLogLines((prev) => [...prev, l]);
+  }, []);
 
   const refreshRecords = useCallback(() => {
     fetchRecords().then(setRecords).catch((err) => setBanner(String(err)));
@@ -59,24 +73,31 @@ function App() {
       try {
         const { run_id, filename } = await submit();
         dispatch({ type: "RUN_STARTED", runId: run_id, filename });
+        setLogLines([formatRunStarted(filename)]);
 
         const stopStreaming = streamRun(run_id, {
           onNodeStarted: (payload) => {
-            dispatch({ type: "NODE_STARTED", node: payload.node as PipelineNodeId });
+            const node = payload.node as PipelineNodeId;
+            dispatch({ type: "NODE_STARTED", node });
+            appendLog(formatNodeStarted(node));
           },
           onNodeFinished: (payload) => {
+            const node = payload.node as PipelineNodeId;
             dispatch({
               type: "NODE_FINISHED",
-              node: payload.node as PipelineNodeId,
+              node,
               error: payload.error,
               summary: payload.output_summary,
             });
+            appendLog(formatNodeFinished(node, payload.duration_ms, payload.error, payload.output_summary));
           },
           onRunCompleted: () => {
             refreshRecords();
+            appendLog(formatRunCompleted());
           },
           onRunFailed: (payload) => {
             setBanner(`Run failed: ${payload.error}`);
+            appendLog(formatRunFailed(payload.error));
           },
           onDone: async () => {
             dispatch({ type: "RUN_DONE" });
@@ -98,7 +119,7 @@ function App() {
         return undefined;
       }
     },
-    [refreshRecords]
+    [refreshRecords, appendLog]
   );
 
   const handleRunSample = useCallback(
@@ -121,6 +142,7 @@ function App() {
         refreshRecords();
         setFullTrace([]);
         setSelectedNode(null);
+        setLogLines([]);
         dispatch({ type: "RESET" });
       })
       .catch((err) => setBanner(String(err)));
@@ -211,6 +233,7 @@ function App() {
         </div>
 
         <div className="debug-panel">
+          <TerminalLog lines={logLines} />
           <DebugPanel trace={fullTrace} selectedNode={selectedNode} />
         </div>
       </div>
