@@ -18,20 +18,7 @@ button, select, input { color: inherit; font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .35; }
 
-.app-root { display: grid; grid-template-rows: auto 1fr auto; height: 100vh; background: #fff; }
-
-.app-header {
-  display: flex; align-items: baseline; justify-content: space-between;
-  padding: 14px 22px; border-bottom: 1px solid #111;
-}
-.app-header h1 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
-.app-header .subtitle { margin: 2px 0 0; font-size: 12px; color: #666; }
-.health-pill {
-  border: 1px solid #111; padding: 3px 9px; font-size: 10px; font-weight: 700;
-  letter-spacing: .06em; text-transform: uppercase;
-}
-.health-pill.fake { background: #fff; color: #666; }
-.health-pill.real { background: #111; color: #fff; }
+.app-root { display: grid; grid-template-rows: 1fr auto; height: 100vh; background: #fff; }
 
 .app-body { display: grid; grid-template-columns: 280px 1fr 320px; overflow: hidden; }
 

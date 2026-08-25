@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Background, ReactFlow, type Edge } from "@xyflow/react";
 import {
-  fetchHealth,
   fetchRecords,
   fetchSampleDocs,
   resetStore,
@@ -25,13 +24,15 @@ import {
   formatRunStarted,
   type LogLine,
 } from "./terminalLog";
-import type { HealthInfo, PipelineNodeId, RecordRow, SampleDoc } from "./types";
+import { remainingDelay } from "./timing";
+import type { PipelineNodeId, RecordRow, SampleDoc } from "./types";
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const NODE_TYPES = { hub: HubNode };
 const EDGE_TYPES = { intake: IntakeEdge };
 
 function App() {
-  const [health, setHealth] = useState<HealthInfo | null>(null);
   const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>([]);
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [pipeline, dispatch] = useReducer(pipelineReducer, initialPipelineState);
@@ -39,6 +40,17 @@ function App() {
   const [banner, setBanner] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<LogLine[]>([]);
   const [isDropTarget, setIsDropTarget] = useState(false);
+  const eventChainRef = useRef<Promise<void>>(Promise.resolve());
+  const nodeStartedAtRef = useRef<Map<PipelineNodeId, number>>(new Map());
+
+  /** Runs `fn` after every previously enqueued event has finished, so a
+   * NODE_FINISHED that's artificially delayed (see timing.ts) can't be
+   * overtaken by the next node's NODE_STARTED, run_completed, or the final
+   * "done" dispatch — everything the UI shows stays in true event order
+   * even though some dispatches are deliberately slowed down. */
+  const enqueue = useCallback((fn: () => void | Promise<void>) => {
+    eventChainRef.current = eventChainRef.current.then(fn);
+  }, []);
 
   const appendLog = useCallback((l: LogLine) => {
     setLogLines((prev) => [...prev, l]);
@@ -60,7 +72,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchHealth().then(setHealth).catch(() => undefined);
     fetchSampleDocs().then(setSampleDocs).catch((err) => setBanner(String(err)));
     refreshRecords();
   }, [refreshRecords]);
@@ -74,32 +85,49 @@ function App() {
         dispatch({ type: "RUN_STARTED", runId: run_id, filename });
         setLogLines([formatRunStarted(filename)]);
 
+        eventChainRef.current = Promise.resolve();
+        nodeStartedAtRef.current.clear();
+
         const stopStreaming = streamRun(run_id, {
           onNodeStarted: (payload) => {
             const node = payload.node as PipelineNodeId;
-            dispatch({ type: "NODE_STARTED", node });
-            appendLog(formatNodeStarted(node));
+            enqueue(() => {
+              nodeStartedAtRef.current.set(node, Date.now());
+              dispatch({ type: "NODE_STARTED", node });
+              appendLog(formatNodeStarted(node));
+            });
           },
           onNodeFinished: (payload) => {
             const node = payload.node as PipelineNodeId;
-            dispatch({
-              type: "NODE_FINISHED",
-              node,
-              error: payload.error,
-              summary: payload.output_summary,
+            enqueue(async () => {
+              const startedAt = nodeStartedAtRef.current.get(node) ?? Date.now();
+              const delay = remainingDelay(Date.now() - startedAt);
+              if (delay > 0) await sleep(delay);
+              dispatch({
+                type: "NODE_FINISHED",
+                node,
+                error: payload.error,
+                summary: payload.output_summary,
+              });
+              appendLog(formatNodeFinished(node, payload.duration_ms, payload.error, payload.output_summary));
             });
-            appendLog(formatNodeFinished(node, payload.duration_ms, payload.error, payload.output_summary));
           },
           onRunCompleted: () => {
-            void refreshRecordsAndFindRun(run_id);
-            appendLog(formatRunCompleted());
+            enqueue(() => {
+              void refreshRecordsAndFindRun(run_id);
+              appendLog(formatRunCompleted());
+            });
           },
           onRunFailed: (payload) => {
-            setBanner(`Run failed: ${payload.error}`);
-            appendLog(formatRunFailed(payload.error));
+            enqueue(() => {
+              setBanner(`Run failed: ${payload.error}`);
+              appendLog(formatRunFailed(payload.error));
+            });
           },
           onDone: () => {
-            dispatch({ type: "RUN_DONE" });
+            enqueue(() => {
+              dispatch({ type: "RUN_DONE" });
+            });
           },
           onError: () => {
             setBanner("Lost connection to the live event stream.");
@@ -112,7 +140,7 @@ function App() {
         return undefined;
       }
     },
-    [refreshRecordsAndFindRun, appendLog]
+    [refreshRecordsAndFindRun, appendLog, enqueue]
   );
 
   const handleRunSample = useCallback(
@@ -194,7 +222,7 @@ function App() {
           data: {
             active: diagramState[spec.target].status !== "pending",
             pulses: isPulsing
-              ? [{ key: `pulse-${pipeline.runId}-${pipeline.pulseSeq}`, durationMs: 550 }]
+              ? [{ key: `pulse-${pipeline.runId}-${pipeline.pulseSeq}`, durationMs: 900 }]
               : [],
           },
         } satisfies IntakeEdgeType;
@@ -204,21 +232,6 @@ function App() {
 
   return (
     <div className="app-root">
-      <header className="app-header">
-        <div>
-          <h1>Sky Transport — Compliance Document Intake Agent</h1>
-          <p className="subtitle">
-            An AI agent that reads a ticket and the intake SOP, classifies and extracts
-            the document, then validates and files it.
-          </p>
-        </div>
-        {health ? (
-          <span className={`health-pill ${health.llm_client === "FakeLLMClient" ? "fake" : "real"}`}>
-            {health.llm_client === "FakeLLMClient" ? "Offline demo mode" : "Live model"}
-          </span>
-        ) : null}
-      </header>
-
       <div className="app-body">
         <div className="controls-panel">
           <TicketPanel
