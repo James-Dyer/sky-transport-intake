@@ -53,6 +53,13 @@ const TOOL_TO_EDGE: Partial<Record<ToolId, string>> = {
   persist: "agent-database",
 };
 
+/** The diagram edge a tool's spoke pulses live on, if it has one — lets
+ * callers (e.g. App.tsx's event pacing) know whether a given tool call
+ * will touch activeEdgeId without duplicating TOOL_TO_EDGE. */
+export function diagramEdgeForTool(tool: ToolId): string | undefined {
+  return TOOL_TO_EDGE[tool];
+}
+
 /** Tools that are a genuine round trip: the agent's request travels out
  * (a "request" pulse) and the resource's answer travels back afterward (a
  * "data" pulse) along the same edge, reversed. persist isn't listed here —

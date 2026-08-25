@@ -8,7 +8,7 @@ import {
   submitSampleTicket,
   submitUpload,
 } from "./api";
-import { agentReducer, initialAgentState } from "./agentReducer";
+import { agentReducer, diagramEdgeForTool, initialAgentState } from "./agentReducer";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
 import { HubNode, type HubNodeType } from "./components/HubNode";
 import { ResultSummary } from "./components/ResultSummary";
@@ -40,6 +40,14 @@ function App() {
   const [isDraggingTicket, setIsDraggingTicket] = useState(false);
   const eventChainRef = useRef<Promise<void>>(Promise.resolve());
   const toolStartedAtRef = useRef<Map<ToolId, number>>(new Map());
+  /** Wall-clock time the diagram's active edge (activeEdgeId/pulseSeq) was
+   * last set. TOOL_CALL_FINISHED already waits out MIN_ACTIVE_MS relative
+   * to when its own tool started, so the forward request pulse is always
+   * visible — but nothing previously stopped the *next* tool's
+   * TOOL_CALL_STARTED from firing immediately afterward, which stole the
+   * edge before the reverse "data" pulse it just triggered had a chance to
+   * render. Pacing TOOL_CALL_STARTED against this ref too closes that gap. */
+  const edgeActivatedAtRef = useRef<number>(0);
 
   /** Runs `fn` after every previously enqueued event has finished, so a
    * TOOL_CALL_FINISHED that's artificially delayed (see timing.ts) can't be
@@ -79,6 +87,7 @@ function App() {
 
         eventChainRef.current = Promise.resolve();
         toolStartedAtRef.current.clear();
+        edgeActivatedAtRef.current = Date.now();
 
         const stopStreaming = streamRun(run_id, {
           onAgentThought: (payload) => {
@@ -89,9 +98,18 @@ function App() {
           },
           onToolCallStarted: (payload) => {
             const tool = payload.tool as ToolId;
-            enqueue(() => {
+            enqueue(async () => {
+              // This tool's forward pulse is about to claim the shared
+              // active edge — if the previous tool's reverse pulse only
+              // just started, give it its own MIN_ACTIVE_MS on screen
+              // first instead of yanking the edge out from under it.
+              if (diagramEdgeForTool(tool)) {
+                const delay = remainingDelay(Date.now() - edgeActivatedAtRef.current);
+                if (delay > 0) await sleep(delay);
+              }
               toolStartedAtRef.current.set(tool, Date.now());
               dispatch({ type: "TOOL_CALL_STARTED", tool });
+              if (diagramEdgeForTool(tool)) edgeActivatedAtRef.current = Date.now();
             });
           },
           onToolCallFinished: (payload) => {
@@ -106,6 +124,7 @@ function App() {
                 resultSummary: payload.result_summary,
                 error: payload.error,
               });
+              if (diagramEdgeForTool(tool)) edgeActivatedAtRef.current = Date.now();
             });
           },
           onRunCompleted: () => {
