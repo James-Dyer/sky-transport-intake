@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { SampleTicket } from "../types";
 
-const DRAG_THUMB_TITLE_LIMIT = 22;
+const DRAG_THUMB_TITLE_LIMIT = 28;
 
 function truncateTitle(title: string, limit = DRAG_THUMB_TITLE_LIMIT) {
   return title.length > limit ? `${title.slice(0, limit - 1)}…` : title;
@@ -18,8 +18,8 @@ function buildDragThumbnail(title: string) {
 
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   icon.setAttribute("viewBox", "0 0 24 24");
-  icon.setAttribute("width", "22");
-  icon.setAttribute("height", "22");
+  icon.setAttribute("width", "16");
+  icon.setAttribute("height", "16");
   icon.innerHTML =
     '<path d="M5 2h9l5 5v15H5z" fill="#fff" stroke="#111" stroke-width="1.2"/>' +
     '<path d="M14 2v5h5" fill="none" stroke="#111" stroke-width="1.2"/>';

@@ -47,12 +47,14 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .ticket-card.is-expanded .drag-hint, .ticket-card.is-expanded p.preview { color: #ccc; }
 .ticket-drag-thumb {
   position: absolute; top: -1000px; left: -1000px;
-  width: 96px; padding: 10px 8px 8px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  width: 180px; padding: 6px 10px;
+  display: flex; flex-direction: row; align-items: center; gap: 7px;
   background: #fff; border: 1px solid #111; box-shadow: 3px 3px 0 #111;
-  font-size: 10px; font-weight: 700; text-align: center; color: #111;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 96px;
+  font-size: 11px; font-weight: 700; text-align: left; color: #111;
+  white-space: nowrap; overflow: hidden;
 }
+.ticket-drag-thumb svg { flex: none; }
+.ticket-drag-thumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-card-full {
   margin: 8px 0 0; padding: 8px; background: #000; color: #d4d4d4; font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap;
