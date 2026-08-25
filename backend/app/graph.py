@@ -32,6 +32,20 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _normalize_fields(fields: dict[str, Any]) -> dict[str, Any]:
+    """The SOP treats usdot_number as the primary key used to match a
+    document to an existing client record (see validation rule 1). Models
+    are free to return it as either a JSON string or a JSON number since
+    the SOP prompt doesn't pin the type — normalize to string here so
+    identity comparisons downstream (and in SQLite) are consistent
+    regardless of which provider/model produced the extraction.
+    """
+    normalized = dict(fields)
+    if "usdot_number" in normalized and normalized["usdot_number"] is not None:
+        normalized["usdot_number"] = str(normalized["usdot_number"])
+    return normalized
+
+
 def _traced(
     name: str,
     fn: NodeFn,
@@ -118,7 +132,7 @@ def build_graph(
             return {"extracted": {}, "_raw_llm_call": None}
         result = llm.extract_fields(state["raw_text"], state["sop_text"], doc_type)
         return {
-            "extracted": result.get("fields", {}),
+            "extracted": _normalize_fields(result.get("fields", {})),
             "_raw_llm_call": result.get("_raw_llm_call"),
         }
 

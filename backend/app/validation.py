@@ -46,6 +46,21 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "UNKNOWN": [],
 }
 
+# Fields the SOP asks the extractor to capture for a doc type but that are
+# legitimately allowed to be null (per SOP: "response_due_date ... may be
+# null if the letter is informational only") — so they're excluded from
+# REQUIRED_FIELDS (a null value must NOT force needs_review) but they are
+# still part of the SOP's field list, not an extraction scope leak.
+OPTIONAL_FIELDS: dict[str, list[str]] = {
+    "DOT_LETTER": ["response_due_date"],
+}
+
+
+def full_field_set(doc_type: str) -> set[str]:
+    """All fields the SOP defines for this doc type, required or optional."""
+    return set(REQUIRED_FIELDS.get(doc_type, [])) | set(OPTIONAL_FIELDS.get(doc_type, []))
+
+
 URGENCY_DAYS: dict[str, int] = {
     "IFTA_QUARTERLY": 14,
     "IRP_RENEWAL": 30,

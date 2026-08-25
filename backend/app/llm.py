@@ -41,6 +41,12 @@ def _extract_json_block(text: str) -> dict[str, Any]:
     brace_match = re.search(r"\{.*\}", candidate, re.DOTALL)
     if brace_match:
         candidate = brace_match.group(0)
+    if not candidate.strip():
+        raise LLMError(
+            "model returned empty content — for reasoning models this usually "
+            "means the token budget was consumed by hidden reasoning tokens "
+            "before any visible output; increase max_tokens or lower reasoning effort"
+        )
     try:
         return json.loads(candidate)
     except json.JSONDecodeError as exc:
@@ -64,8 +70,19 @@ Respond with ONLY a JSON object, no prose, matching this shape:
 EXTRACT_PROMPT = """You are a document intake field-extraction agent for a \
 trucking compliance service company. The document has already been \
 classified as {doc_type}. Read the SOP below for the exact field list for \
-this document type, then extract those fields from the document. If a \
+this document type, then extract ONLY those fields from the document. If a \
 field is not present in the text, set it to null — never invent a value.
+
+Do not add any keys beyond the exact field list for {doc_type} given in the \
+SOP. In particular, do not add missing_fields, needs_review, or \
+deadline_flag — validating what's missing and deciding urgency is a \
+separate step downstream from this one, not your job here.
+
+The "never invent a value" rule applies to dates too: only fill in a date \
+field if the document states an explicit calendar date for it. Do not \
+calculate or infer a date from relative language (e.g. "within 5 business \
+days" or "due 30 days from receipt") — leave the field null in that case \
+rather than computing one.
 
 SOP:
 {sop_text}
@@ -78,25 +95,56 @@ Respond with ONLY a JSON object, no prose, matching this shape:
 """
 
 
-@dataclass
-class AnthropicLLMClient:
-    model: str = field(
-        default_factory=lambda: os.environ.get(
-            "SKY_INTAKE_MODEL", "claude-haiku-4-5-20251001"
+class _ChatCompletionLLMClientBase:
+    """Shared classify/extract logic for any provider that exposes a plain
+    chat-style call. Subclasses implement only `_call` (send one prompt,
+    return the parsed JSON dict plus a raw-call record for diagnostics);
+    the prompts, JSON salvage, and response shape are provider-independent.
+    """
+
+    model: str
+
+    def _call(self, prompt: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        raise NotImplementedError
+
+    def classify_document(self, raw_text: str, sop_text: str) -> dict[str, Any]:
+        prompt = CLASSIFY_PROMPT.format(sop_text=sop_text, raw_text=raw_text)
+        parsed, raw = self._call(prompt)
+        parsed["_raw_llm_call"] = raw
+        return parsed
+
+    def extract_fields(
+        self, raw_text: str, sop_text: str, doc_type: str
+    ) -> dict[str, Any]:
+        prompt = EXTRACT_PROMPT.format(
+            sop_text=sop_text, raw_text=raw_text, doc_type=doc_type
         )
+        parsed, raw = self._call(prompt)
+        parsed["_raw_llm_call"] = raw
+        return parsed
+
+
+def _require_api_key() -> str:
+    api_key = os.environ.get("LLM_API_KEY")
+    if not api_key:
+        raise RuntimeError(
+            "LLM_API_KEY is not set — required for a real LLM client. "
+            "Set it in backend/.env, or set SKY_INTAKE_FAKE_LLM=1 for offline runs."
+        )
+    return api_key
+
+
+@dataclass
+class AnthropicLLMClient(_ChatCompletionLLMClientBase):
+    model: str = field(
+        default_factory=lambda: os.environ.get("MODEL_NAME", "claude-haiku-4-5-20251001")
     )
     max_tokens: int = 1024
 
     def __post_init__(self) -> None:
         import anthropic
 
-        api_key = os.environ.get("SKY_INTAKE_LLM_API_KEY")
-        if not api_key:
-            raise RuntimeError(
-                "SKY_INTAKE_LLM_API_KEY is not set — required for AnthropicLLMClient. "
-                "Set it in backend/.env or use FakeLLMClient for offline runs."
-            )
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._client = anthropic.Anthropic(api_key=_require_api_key())
 
     def _call(self, prompt: str) -> tuple[dict[str, Any], dict[str, Any]]:
         response = self._client.messages.create(
@@ -118,21 +166,42 @@ class AnthropicLLMClient:
         }
         return _extract_json_block(text), raw
 
-    def classify_document(self, raw_text: str, sop_text: str) -> dict[str, Any]:
-        prompt = CLASSIFY_PROMPT.format(sop_text=sop_text, raw_text=raw_text)
-        parsed, raw = self._call(prompt)
-        parsed["_raw_llm_call"] = raw
-        return parsed
 
-    def extract_fields(
-        self, raw_text: str, sop_text: str, doc_type: str
-    ) -> dict[str, Any]:
-        prompt = EXTRACT_PROMPT.format(
-            sop_text=sop_text, raw_text=raw_text, doc_type=doc_type
+@dataclass
+class OpenAILLMClient(_ChatCompletionLLMClientBase):
+    model: str = field(default_factory=lambda: os.environ.get("MODEL_NAME", "gpt-5-mini"))
+    # gpt-5-mini is a reasoning model: hidden reasoning tokens are drawn from
+    # the same max_completion_tokens budget as the visible answer, so a
+    # budget sized for a "normal" chat model (e.g. 1024) can be fully
+    # consumed by reasoning and leave zero tokens for actual JSON output.
+    # 4096 plus a low reasoning-effort hint keeps output reliable for a
+    # short-answer extraction task like this one.
+    max_tokens: int = 4096
+
+    def __post_init__(self) -> None:
+        import openai
+
+        self._client = openai.OpenAI(api_key=_require_api_key())
+
+    def _call(self, prompt: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        response = self._client.chat.completions.create(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=self.max_tokens,
+            reasoning_effort="low",
         )
-        parsed, raw = self._call(prompt)
-        parsed["_raw_llm_call"] = raw
-        return parsed
+        text = response.choices[0].message.content or ""
+        usage = response.usage
+        raw = {
+            "model": self.model,
+            "prompt": prompt,
+            "response_text": text,
+            "usage": {
+                "input_tokens": usage.prompt_tokens if usage else None,
+                "output_tokens": usage.completion_tokens if usage else None,
+            },
+        }
+        return _extract_json_block(text), raw
 
 
 class FakeLLMClient:
@@ -140,7 +209,8 @@ class FakeLLMClient:
 
     Uses simple keyword heuristics over the sample-doc corpus so the graph's
     control flow (routing, validation, urgency) can be exercised in CI
-    without a network call. Real accuracy work happens in AnthropicLLMClient.
+    without a network call. Real accuracy work happens in the provider
+    clients (AnthropicLLMClient / OpenAILLMClient).
     """
 
     def classify_document(self, raw_text: str, sop_text: str) -> dict[str, Any]:
@@ -193,12 +263,21 @@ class FakeLLMClient:
         }
 
 
+PROVIDER_CLIENTS: dict[str, type[_ChatCompletionLLMClientBase]] = {
+    "anthropic": AnthropicLLMClient,
+    "openai": OpenAILLMClient,
+}
+
+
 def build_llm_client(use_fake: bool | None = None) -> LLMClient:
     """Factory used by the graph builder and the API layer.
 
     `use_fake=None` reads SKY_INTAKE_FAKE_LLM from the environment so the
     same code path is used for `pytest` (fake, no cost) and `uvicorn`
-    (real, unless explicitly overridden).
+    (real, unless explicitly overridden). The real path is provider-neutral:
+    `MODEL_PROVIDER` (default "anthropic") picks the SDK, `MODEL_NAME` picks
+    the model, `LLM_API_KEY` authenticates — swapping providers is a .env
+    change, not a code change.
     """
     if use_fake is None:
         use_fake = os.environ.get("SKY_INTAKE_FAKE_LLM", "").lower() in (
@@ -209,4 +288,12 @@ def build_llm_client(use_fake: bool | None = None) -> LLMClient:
     if use_fake:
         logger.info("using FakeLLMClient (SKY_INTAKE_FAKE_LLM set)")
         return FakeLLMClient()
-    return AnthropicLLMClient()
+
+    provider = os.environ.get("MODEL_PROVIDER", "anthropic").lower()
+    client_cls = PROVIDER_CLIENTS.get(provider)
+    if client_cls is None:
+        raise RuntimeError(
+            f"unknown MODEL_PROVIDER={provider!r}; supported: {sorted(PROVIDER_CLIENTS)}"
+        )
+    logger.info("using %s (MODEL_PROVIDER=%s)", client_cls.__name__, provider)
+    return client_cls()

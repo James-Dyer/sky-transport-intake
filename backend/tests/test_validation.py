@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from app.validation import validate
+from app.validation import full_field_set, validate
 
 
 def test_missing_usdot_forces_review_even_if_otherwise_complete():
@@ -92,3 +92,22 @@ def test_out_of_service_order_is_always_urgent_regardless_of_date():
 def test_unknown_doc_type_always_needs_review():
     result = validate("UNKNOWN", {}, now=datetime(2026, 8, 25))
     assert result["needs_review"] is True
+
+
+def test_dot_letter_response_due_date_is_optional_not_required():
+    # SOP explicitly allows response_due_date to be null for informational
+    # letters (e.g. mcs150_reminder with no response needed) — it must be
+    # part of the SOP's field set (extractable) without forcing needs_review
+    # when absent, unlike the other DOT_LETTER fields.
+    fields = {
+        "carrier_name": "Summit Line Haulers LLC",
+        "usdot_number": "2765410",
+        "letter_type": "mcs150_reminder",
+        "issuing_agency": "FMCSA",
+        "response_due_date": None,
+    }
+    result = validate("DOT_LETTER", fields, now=datetime(2026, 8, 25))
+    assert result["missing_fields"] == []
+    assert result["needs_review"] is False
+    assert "response_due_date" in full_field_set("DOT_LETTER")
+    assert "response_due_date" not in full_field_set("IFTA_QUARTERLY")

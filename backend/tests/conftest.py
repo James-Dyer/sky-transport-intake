@@ -2,11 +2,18 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-os.environ.setdefault("SKY_INTAKE_FAKE_LLM", "1")
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BACKEND_DIR))
 
 import pytest
+from dotenv import load_dotenv
+
+# Load a real key for tests/test_graph_live.py to pick up, but do NOT let it
+# flip the default offline suite over to real calls: SKY_INTAKE_FAKE_LLM=1
+# is set explicitly below, after the .env load, so it always wins here.
+load_dotenv(BACKEND_DIR / ".env")
+load_dotenv(BACKEND_DIR / ".env.local", override=True)
+os.environ["SKY_INTAKE_FAKE_LLM"] = "1"
 
 SOP_PATH = Path(__file__).resolve().parent.parent / "sop" / "compliance-intake.md"
 SAMPLE_DOCS_DIR = Path(__file__).resolve().parent.parent / "sample_docs"
