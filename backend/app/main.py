@@ -123,10 +123,11 @@ async def health() -> dict:
 
 @app.get("/api/sample-docs")
 async def list_sample_docs() -> list[dict]:
-    return [
-        {"filename": p.name, "preview": p.read_text()[:160]}
-        for p in sorted(SAMPLE_DOCS_DIR.glob("*.txt"))
-    ]
+    docs = []
+    for p in sorted(SAMPLE_DOCS_DIR.glob("*.txt")):
+        text = p.read_text()
+        docs.append({"filename": p.name, "preview": text[:160], "full_text": text})
+    return docs
 
 
 @app.post("/api/tickets/sample/{filename}")

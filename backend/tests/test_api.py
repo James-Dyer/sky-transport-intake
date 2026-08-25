@@ -35,8 +35,14 @@ def test_health_reports_fake_llm(client):
 def test_sample_docs_listed(client):
     resp = client.get("/api/sample-docs")
     assert resp.status_code == 200
-    names = [d["filename"] for d in resp.json()]
+    docs = resp.json()
+    names = [d["filename"] for d in docs]
     assert "01_ifta_q2.txt" in names
+    # full_text backs the ticket detail view in the UI - must be the whole
+    # document, not just the preview snippet.
+    ifta_doc = next(d for d in docs if d["filename"] == "01_ifta_q2.txt")
+    assert len(ifta_doc["full_text"]) > len(ifta_doc["preview"])
+    assert "USDOT Number: 2847193" in ifta_doc["full_text"]
     assert "06_unrelated_invoice.txt" in names
 
 

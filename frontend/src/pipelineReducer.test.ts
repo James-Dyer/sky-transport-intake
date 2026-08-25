@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { initialPipelineState, pipelineReducer } from "./pipelineReducer";
+import type { PipelineNodeId } from "./types";
 
 describe("pipelineReducer", () => {
   it("resets all node statuses to pending on RUN_STARTED", () => {
@@ -54,7 +55,32 @@ describe("pipelineReducer", () => {
     });
     expect(state.statuses.extract_fields.status).toBe("error");
     expect(state.statuses.extract_fields.label).toBe("LLMError: bad json");
-    expect(state.activeEdgeIndex).toBeNull();
+    expect(state.activeEdgeId).toBeNull();
+  });
+
+  it("maps each backend node that has a visible edge to the right diagram edge id", () => {
+    const run = () =>
+      pipelineReducer(initialPipelineState, { type: "RUN_STARTED", runId: "r1", filename: "d" });
+    const finish = (node: PipelineNodeId) =>
+      pipelineReducer(run(), { type: "NODE_FINISHED", node, error: null, summary: {} }).activeEdgeId;
+
+    expect(finish("receive_ticket")).toBe("ticket-agent");
+    expect(finish("consult_sop")).toBe("sop-agent");
+    expect(finish("extract_fields")).toBe("agent-validate");
+    expect(finish("validate")).toBe("validate-database");
+  });
+
+  it("does not pulse any edge for classify_doc or persist (internal to the agent / terminal)", () => {
+    const run = () =>
+      pipelineReducer(initialPipelineState, { type: "RUN_STARTED", runId: "r1", filename: "d" });
+    expect(
+      pipelineReducer(run(), { type: "NODE_FINISHED", node: "classify_doc", error: null, summary: {} })
+        .activeEdgeId
+    ).toBeNull();
+    expect(
+      pipelineReducer(run(), { type: "NODE_FINISHED", node: "persist", error: null, summary: {} })
+        .activeEdgeId
+    ).toBeNull();
   });
 
   it("summarizes validate outcomes distinctly for review vs urgent vs ok", () => {

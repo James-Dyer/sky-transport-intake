@@ -14,6 +14,7 @@ export type NodeRunStatus = "pending" | "active" | "done" | "error";
 export interface SampleDoc {
   filename: string;
   preview: string;
+  full_text: string;
 }
 
 export interface NodeTrace {

@@ -3,19 +3,19 @@ import { Background, ReactFlow, type Edge } from "@xyflow/react";
 import {
   fetchHealth,
   fetchRecords,
-  fetchRun,
   fetchSampleDocs,
   resetStore,
   streamRun,
   submitSampleDoc,
   submitUpload,
 } from "./api";
-import { ControlsPanel } from "./components/ControlsPanel";
-import { DebugPanel } from "./components/DebugPanel";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
-import { IntakeFlowNode, type IntakeFlowNodeType } from "./components/IntakeFlowNode";
+import { HubNode, type HubNodeType } from "./components/HubNode";
 import { RecordsTable } from "./components/RecordsTable";
+import { ResultSummary } from "./components/ResultSummary";
 import { TerminalLog } from "./components/TerminalLog";
+import { TicketPanel } from "./components/TicketPanel";
+import { DIAGRAM_EDGES, DIAGRAM_NODES, deriveDiagramState } from "./diagramLayout";
 import { initialPipelineState, pipelineReducer } from "./pipelineReducer";
 import {
   formatNodeFinished,
@@ -25,34 +25,34 @@ import {
   formatRunStarted,
   type LogLine,
 } from "./terminalLog";
-import { PIPELINE_NODES, type HealthInfo, type NodeTrace, type PipelineNodeId, type RecordRow, type SampleDoc } from "./types";
+import type { HealthInfo, PipelineNodeId, RecordRow, SampleDoc } from "./types";
 
-const NODE_LABELS: Record<PipelineNodeId, string> = {
-  receive_ticket: "Ticket",
-  consult_sop: "Consult SOP",
-  classify_doc: "Classify",
-  extract_fields: "Extract",
-  validate: "Validate",
-  persist: "Record",
-};
-
-const NODE_TYPES = { intake: IntakeFlowNode };
+const NODE_TYPES = { hub: HubNode };
 const EDGE_TYPES = { intake: IntakeEdge };
-
-const NODE_X_GAP = 190;
 
 function App() {
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [sampleDocs, setSampleDocs] = useState<SampleDoc[]>([]);
   const [records, setRecords] = useState<RecordRow[]>([]);
   const [pipeline, dispatch] = useReducer(pipelineReducer, initialPipelineState);
-  const [fullTrace, setFullTrace] = useState<NodeTrace[]>([]);
-  const [selectedNode, setSelectedNode] = useState<PipelineNodeId | null>(null);
+  const [lastResult, setLastResult] = useState<RecordRow | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<LogLine[]>([]);
+  const [isDropTarget, setIsDropTarget] = useState(false);
 
   const appendLog = useCallback((l: LogLine) => {
     setLogLines((prev) => [...prev, l]);
+  }, []);
+
+  const refreshRecordsAndFindRun = useCallback(async (runId: string) => {
+    try {
+      const rows = await fetchRecords();
+      setRecords(rows);
+      const match = rows.find((r) => r.run_id === runId);
+      if (match) setLastResult(match);
+    } catch (err) {
+      setBanner(String(err));
+    }
   }, []);
 
   const refreshRecords = useCallback(() => {
@@ -68,8 +68,7 @@ function App() {
   const runDocument = useCallback(
     async (submit: () => Promise<{ run_id: string; filename: string }>) => {
       setBanner(null);
-      setFullTrace([]);
-      setSelectedNode(null);
+      setLastResult(null);
       try {
         const { run_id, filename } = await submit();
         dispatch({ type: "RUN_STARTED", runId: run_id, filename });
@@ -92,21 +91,15 @@ function App() {
             appendLog(formatNodeFinished(node, payload.duration_ms, payload.error, payload.output_summary));
           },
           onRunCompleted: () => {
-            refreshRecords();
+            void refreshRecordsAndFindRun(run_id);
             appendLog(formatRunCompleted());
           },
           onRunFailed: (payload) => {
             setBanner(`Run failed: ${payload.error}`);
             appendLog(formatRunFailed(payload.error));
           },
-          onDone: async () => {
+          onDone: () => {
             dispatch({ type: "RUN_DONE" });
-            try {
-              const run = await fetchRun(run_id);
-              setFullTrace(run.trace);
-            } catch (err) {
-              setBanner(String(err));
-            }
           },
           onError: () => {
             setBanner("Lost connection to the live event stream.");
@@ -119,7 +112,7 @@ function App() {
         return undefined;
       }
     },
-    [refreshRecords, appendLog]
+    [refreshRecordsAndFindRun, appendLog]
   );
 
   const handleRunSample = useCallback(
@@ -140,50 +133,73 @@ function App() {
     resetStore()
       .then(() => {
         refreshRecords();
-        setFullTrace([]);
-        setSelectedNode(null);
+        setLastResult(null);
         setLogLines([]);
         dispatch({ type: "RESET" });
       })
       .catch((err) => setBanner(String(err)));
   }, [refreshRecords]);
 
-  const nodes: IntakeFlowNodeType[] = useMemo(
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (pipeline.running) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setIsDropTarget(true);
+    },
+    [pipeline.running]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDropTarget(false);
+      if (pipeline.running) return;
+      const filename = e.dataTransfer.getData("text/plain");
+      if (filename) handleRunSample(filename);
+    },
+    [pipeline.running, handleRunSample]
+  );
+
+  const diagramState = useMemo(() => deriveDiagramState(pipeline), [pipeline]);
+
+  const nodes: HubNodeType[] = useMemo(
     () =>
-      PIPELINE_NODES.map((node, i) => ({
-        id: node,
-        type: "intake",
-        position: { x: i * NODE_X_GAP, y: 0 },
+      DIAGRAM_NODES.map((spec) => ({
+        id: spec.id,
+        type: "hub",
+        position: { x: spec.x, y: spec.y },
         data: {
-          label: NODE_LABELS[node],
-          node,
-          status: pipeline.statuses[node].status,
-          statusLabel: pipeline.statuses[node].label,
+          diagramId: spec.id,
+          label: spec.label,
+          statusLine: diagramState[spec.id].statusLine,
+          status: diagramState[spec.id].status,
+          size: spec.size,
         },
         draggable: false,
         selectable: true,
       })),
-    [pipeline.statuses]
+    [diagramState]
   );
 
   const edges: IntakeEdgeType[] = useMemo(
     () =>
-      PIPELINE_NODES.slice(0, -1).map((node, i) => {
-        const isPulsing = pipeline.activeEdgeIndex === i;
+      DIAGRAM_EDGES.map((spec) => {
+        const isPulsing = pipeline.activeEdgeId === spec.id;
         return {
-          id: `${node}->${PIPELINE_NODES[i + 1]}`,
-          source: node,
-          target: PIPELINE_NODES[i + 1],
+          id: spec.id,
+          source: spec.source,
+          target: spec.target,
           type: "intake",
           data: {
-            active: pipeline.statuses[PIPELINE_NODES[i + 1]].status !== "pending",
+            active: diagramState[spec.target].status !== "pending",
             pulses: isPulsing
               ? [{ key: `pulse-${pipeline.runId}-${pipeline.pulseSeq}`, durationMs: 550 }]
               : [],
           },
         } satisfies IntakeEdgeType;
       }),
-    [pipeline.activeEdgeIndex, pipeline.pulseSeq, pipeline.runId, pipeline.statuses]
+    [pipeline.activeEdgeId, pipeline.pulseSeq, pipeline.runId, diagramState]
   );
 
   return (
@@ -192,7 +208,8 @@ function App() {
         <div>
           <h1>Sky Transport — Compliance Document Intake Agent</h1>
           <p className="subtitle">
-            LangGraph pipeline: ticket → SOP → classify → extract → validate → record
+            An AI agent that reads a ticket and the intake SOP, classifies and extracts
+            the document, then validates and files it.
           </p>
         </div>
         {health ? (
@@ -204,7 +221,7 @@ function App() {
 
       <div className="app-body">
         <div className="controls-panel">
-          <ControlsPanel
+          <TicketPanel
             sampleDocs={sampleDocs}
             onRunSample={handleRunSample}
             onUpload={handleUpload}
@@ -213,17 +230,28 @@ function App() {
           />
         </div>
 
-        <div className="flow-surface">
-          {banner ? <div className="error-banner" style={{ position: "absolute", top: 10, left: 10, right: 10, zIndex: 10 }}>{banner}</div> : null}
-          <ReactFlow<IntakeFlowNodeType, Edge>
+        <div
+          className={`flow-surface${isDropTarget ? " is-drop-target" : ""}`}
+          onDragOver={handleDragOver}
+          onDragLeave={() => setIsDropTarget(false)}
+          onDrop={handleDrop}
+        >
+          {banner ? (
+            <div
+              className="error-banner"
+              style={{ position: "absolute", top: 10, left: 10, right: 10, zIndex: 10 }}
+            >
+              {banner}
+            </div>
+          ) : null}
+          {isDropTarget ? <div className="drop-hint">Drop to feed this ticket to the agent</div> : null}
+          <ReactFlow<HubNodeType, Edge>
             nodes={nodes}
             edges={edges}
             edgeTypes={EDGE_TYPES}
             nodeTypes={NODE_TYPES}
-            onNodeClick={(_, node) => setSelectedNode(node.id as PipelineNodeId)}
-            onPaneClick={() => setSelectedNode(null)}
             fitView
-            fitViewOptions={{ padding: 0.3 }}
+            fitViewOptions={{ padding: 0.35 }}
             nodesDraggable={false}
             nodesConnectable={false}
             proOptions={{ hideAttribution: true }}
@@ -233,8 +261,8 @@ function App() {
         </div>
 
         <div className="debug-panel">
+          <ResultSummary record={lastResult} processingFilename={pipeline.running ? pipeline.filename : null} />
           <TerminalLog lines={logLines} />
-          <DebugPanel trace={fullTrace} selectedNode={selectedNode} />
         </div>
       </div>
 

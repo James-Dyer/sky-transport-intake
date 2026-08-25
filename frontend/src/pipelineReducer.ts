@@ -6,9 +6,20 @@ export interface PipelineState {
   running: boolean;
   statuses: Record<PipelineNodeId, { status: NodeRunStatus; label: string }>;
   pulseSeq: number;
-  activeEdgeIndex: number | null; // index into PIPELINE_NODES marking the edge that should pulse
+  activeEdgeId: string | null; // diagram edge id (see diagramLayout.ts) that should pulse right now
   error: string | null;
 }
+
+/** Which diagram edge lights up when a given backend node finishes. Not
+ * every node maps to a visible edge: classify_doc and extract_fields happen
+ * "inside" the agent (see diagramLayout's AGENT_ACTION_LABELS) rather than
+ * being a separate hub-and-spoke node, so only their entry/exit edges pulse. */
+const NODE_TO_EDGE: Partial<Record<PipelineNodeId, string>> = {
+  receive_ticket: "ticket-agent",
+  consult_sop: "sop-agent",
+  extract_fields: "agent-validate",
+  validate: "validate-database",
+};
 
 const IDLE_STATUSES = Object.fromEntries(
   PIPELINE_NODES.map((n) => [n, { status: "pending" as NodeRunStatus, label: "" }])
@@ -20,7 +31,7 @@ export const initialPipelineState: PipelineState = {
   running: false,
   statuses: IDLE_STATUSES,
   pulseSeq: 0,
-  activeEdgeIndex: null,
+  activeEdgeId: null,
   error: null,
 };
 
@@ -72,7 +83,6 @@ export function pipelineReducer(state: PipelineState, action: PipelineAction): P
         },
       };
     case "NODE_FINISHED": {
-      const idx = PIPELINE_NODES.indexOf(action.node);
       return {
         ...state,
         statuses: {
@@ -83,7 +93,7 @@ export function pipelineReducer(state: PipelineState, action: PipelineAction): P
           },
         },
         pulseSeq: state.pulseSeq + 1,
-        activeEdgeIndex: action.error ? null : idx,
+        activeEdgeId: action.error ? null : (NODE_TO_EDGE[action.node] ?? null),
       };
     }
     case "RUN_DONE":
