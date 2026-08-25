@@ -302,6 +302,35 @@ function App() {
     () =>
       DIAGRAM_EDGES.map((spec) => {
         const isPulsing = agent.activeEdgeId === spec.id;
+        // The forward (request/data-out) leg's real duration is whatever
+        // the live model/tool actually takes — anywhere from instant to
+        // many seconds — so instead of a single pulse timed for a guess,
+        // loop a token continuously for as long as the target tool is
+        // still "active". Once it flips to done/error the tool call has
+        // actually finished: a two-way tool gets an explicit reverse pulse
+        // (activeEdgeReverse), a one-way tool (persist) just stops.
+        const inFlight = !agent.activeEdgeReverse && diagramState[spec.target].status === "active";
+        const pulses = isPulsing
+          ? agent.activeEdgeReverse
+            ? [
+                {
+                  key: `pulse-${agent.runId}-${agent.pulseSeq}`,
+                  durationMs: 1500,
+                  reverse: true,
+                  kind: agent.activeEdgeKind,
+                },
+              ]
+            : inFlight
+              ? [
+                  {
+                    key: `pulse-${agent.runId}-${agent.pulseSeq}-loop`,
+                    durationMs: 900,
+                    kind: agent.activeEdgeKind,
+                    loop: true,
+                  },
+                ]
+              : []
+          : [];
         return {
           id: spec.id,
           source: spec.source,
@@ -311,16 +340,7 @@ function App() {
           type: "intake",
           data: {
             active: diagramState[spec.target].status !== "pending",
-            pulses: isPulsing
-              ? [
-                  {
-                    key: `pulse-${agent.runId}-${agent.pulseSeq}`,
-                    durationMs: 1500,
-                    reverse: agent.activeEdgeReverse,
-                    kind: agent.activeEdgeKind,
-                  },
-                ]
-              : [],
+            pulses,
           },
         } satisfies IntakeEdgeType;
       }),
