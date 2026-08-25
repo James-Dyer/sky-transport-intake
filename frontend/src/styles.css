@@ -121,10 +121,20 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .hub-node.is-active .hub-node-label strong { color: #111; }
 .hub-node.is-active .hub-node-status { color: #111; font-weight: 700; }
 
-.hub-node.is-done .hub-node-circle { border-color: #111; background: #111; }
-.hub-node.is-done .hub-node-circle svg { color: #fff; }
+/* "done" alone is a read-only finish (SOP lookup, PDF read, validation
+   check, the agent hub itself) — dark ring, dark icon, but the circle stays
+   unfilled. Solid black is reserved for is-written below, so the diagram
+   distinguishes "this step finished" from "the agent wrote to this". */
+.hub-node.is-done .hub-node-circle { border-color: #111; }
+.hub-node.is-done .hub-node-circle svg { color: #111; }
 .hub-node.is-done .hub-node-label strong { color: #111; }
 .hub-node.is-done .hub-node-status { color: #4a4a4a; }
+
+/* is-written: the agent actually modified this resource (e.g. filed a
+   database record). Only ever paired with is-done, so this simply layers a
+   filled-black circle on top of the plain "done" look above. */
+.hub-node.is-written .hub-node-circle { background: #111; }
+.hub-node.is-written .hub-node-circle svg { color: #fff; }
 
 .hub-node.is-error .hub-node-circle { border-color: #e00000; box-shadow: 0 0 0 5px rgba(224,0,0,.1); }
 .hub-node.is-error .hub-node-circle svg { color: #e00000; }

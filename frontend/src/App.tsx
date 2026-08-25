@@ -222,6 +222,9 @@ function App() {
             statusLine: diagramState[spec.id].statusLine,
             status: diagramState[spec.id].status,
             size: spec.size,
+            targetSides: spec.targetSides,
+            sourceSides: spec.sourceSides,
+            writesData: spec.writesData,
             isDropZone: isTicketNode,
             isDropArmed: isTicketNode && isDraggingTicket,
             isDropActive: isTicketNode && isDropTarget,
@@ -251,6 +254,8 @@ function App() {
           id: spec.id,
           source: spec.source,
           target: spec.target,
+          sourceHandle: `out-${spec.sourceSide ?? "right"}`,
+          targetHandle: `in-${spec.targetSide ?? "left"}`,
           type: "intake",
           data: {
             active: diagramState[spec.target].status !== "pending",
@@ -260,13 +265,14 @@ function App() {
                     key: `pulse-${agent.runId}-${agent.pulseSeq}`,
                     durationMs: 1500,
                     reverse: agent.activeEdgeReverse,
+                    kind: agent.activeEdgeKind,
                   },
                 ]
               : [],
           },
         } satisfies IntakeEdgeType;
       }),
-    [agent.activeEdgeId, agent.activeEdgeReverse, agent.pulseSeq, agent.runId, diagramState]
+    [agent.activeEdgeId, agent.activeEdgeReverse, agent.activeEdgeKind, agent.pulseSeq, agent.runId, diagramState]
   );
 
   return (

@@ -8,6 +8,10 @@ export interface DocTokenPulse {
    * tool_call_finished pulse traveling back to the agent hub along the
    * same edge a tool_call_started pulse just traveled out on. */
   reverse?: boolean;
+  /** "request" renders as a call/query glyph (the agent asking for
+   * something, no data yet); "data" renders as a document glyph (actual
+   * information moving). Defaults to "data". */
+  kind?: "request" | "data";
 }
 
 export interface IntakeEdgeData extends Record<string, unknown> {
@@ -51,11 +55,20 @@ export function IntakeEdge({
         style={style}
       />
       {data?.pulses?.map((pulse) => (
-        <g key={pulse.key} className="token-token" opacity="0" aria-hidden="true">
+        <g key={pulse.key} className={`token-token token-${pulse.kind ?? "data"}`} opacity="0" aria-hidden="true">
           <g className="token-glyph" transform="scale(1.2)">
             <circle className="token-bg" r="10" />
-            <path d="M-4-4h5l3 3v5h-8z" />
-            <path d="M-1-4v3h3" />
+            {pulse.kind === "request" ? (
+              // Call/query glyph: an outbound chevron, standing in for
+              // "the agent is asking" rather than any actual data.
+              <path d="M-3-5l5 5-5 5" />
+            ) : (
+              // Document glyph: actual information moving along the edge.
+              <>
+                <path d="M-4-4h5l3 3v5h-8z" />
+                <path d="M-1-4v3h3" />
+              </>
+            )}
           </g>
           <animateMotion
             path={path}

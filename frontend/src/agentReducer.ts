@@ -17,6 +17,10 @@ export interface AgentState {
   pulseSeq: number;
   activeEdgeId: string | null;
   activeEdgeReverse: boolean;
+  /** "request" pulses render as a call/query glyph, "data" pulses render as
+   * a document glyph — lets the diagram distinguish "the agent is asking
+   * for something" from "information is actually moving". */
+  activeEdgeKind: "request" | "data";
   error: string | null;
 }
 
@@ -34,6 +38,7 @@ export const initialAgentState: AgentState = {
   pulseSeq: 0,
   activeEdgeId: null,
   activeEdgeReverse: false,
+  activeEdgeKind: "data",
   error: null,
 };
 
@@ -47,6 +52,13 @@ const TOOL_TO_EDGE: Partial<Record<ToolId, string>> = {
   validate: "agent-validate",
   persist: "agent-database",
 };
+
+/** Tools that are a genuine round trip: the agent's request travels out
+ * (a "request" pulse) and the resource's answer travels back afterward (a
+ * "data" pulse) along the same edge, reversed. persist isn't listed here —
+ * writing a record is one-way, the outbound trip already *is* the data
+ * being filed, so there's nothing to send back. */
+const TWO_WAY_TOOLS: ToolId[] = ["search_sop", "read_pdf", "validate"];
 
 function shortResult(result: string, limit = 80): string {
   const oneLine = result.replace(/\s+/g, " ").trim();
@@ -111,6 +123,8 @@ export function agentReducer(state: AgentState, action: AgentAction): AgentState
         agentStatusLine: "reading the ticket…",
         agentStatus: "active",
         activeEdgeId: "ticket-agent",
+        activeEdgeReverse: false,
+        activeEdgeKind: "data",
         pulseSeq: state.pulseSeq + 1,
       };
     case "AGENT_THOUGHT":
@@ -122,6 +136,7 @@ export function agentReducer(state: AgentState, action: AgentAction): AgentState
     case "TOOL_CALL_STARTED": {
       const edge = TOOL_TO_EDGE[action.tool];
       const isSpoke = SPOKE_TOOLS.includes(action.tool);
+      const isTwoWay = TWO_WAY_TOOLS.includes(action.tool);
       return {
         ...state,
         toolStatuses: isSpoke
@@ -133,24 +148,36 @@ export function agentReducer(state: AgentState, action: AgentAction): AgentState
         pulseSeq: edge ? state.pulseSeq + 1 : state.pulseSeq,
         activeEdgeId: edge ?? state.activeEdgeId,
         activeEdgeReverse: false,
+        // Two-way tools send a request out first; one-way tools (persist)
+        // are already moving the real data on this leg.
+        activeEdgeKind: edge ? (isTwoWay ? "request" : "data") : state.activeEdgeKind,
       };
     }
     case "TOOL_CALL_FINISHED": {
       const edge = TOOL_TO_EDGE[action.tool];
       const isSpoke = SPOKE_TOOLS.includes(action.tool);
+      const isTwoWay = TWO_WAY_TOOLS.includes(action.tool);
       const label = action.error ?? summarizeToolFinish(action.tool, action.resultSummary);
+      const toolStatuses = isSpoke
+        ? {
+            ...state.toolStatuses,
+            [action.tool]: { status: action.error ? "error" : "done", label },
+          }
+        : state.toolStatuses;
+      // One-way tools have no return trip: the forward "data" pulse
+      // already landed, so leave the edge as-is rather than pulsing it
+      // again in reverse.
+      if (!isTwoWay) {
+        return { ...state, toolStatuses, agentStatusLine: !isSpoke ? label : state.agentStatusLine };
+      }
       return {
         ...state,
-        toolStatuses: isSpoke
-          ? {
-              ...state.toolStatuses,
-              [action.tool]: { status: action.error ? "error" : "done", label },
-            }
-          : state.toolStatuses,
+        toolStatuses,
         agentStatusLine: !isSpoke ? label : state.agentStatusLine,
         pulseSeq: edge ? state.pulseSeq + 1 : state.pulseSeq,
         activeEdgeId: edge ?? state.activeEdgeId,
         activeEdgeReverse: true,
+        activeEdgeKind: "data",
       };
     }
     case "RUN_DONE":

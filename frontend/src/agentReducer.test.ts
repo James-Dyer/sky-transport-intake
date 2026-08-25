@@ -42,9 +42,10 @@ describe("agentReducer", () => {
     expect(state.activeEdgeReverse).toBe(true);
   });
 
-  it("reverses the persist edge too, as a filed-record confirmation flowing back", () => {
+  it("does not reverse the persist edge — writing a record is one-way, no confirmation flows back", () => {
     let state = started();
     state = agentReducer(state, { type: "TOOL_CALL_STARTED", tool: "persist" });
+    expect(state.activeEdgeKind).toBe("data");
     state = agentReducer(state, {
       type: "TOOL_CALL_FINISHED",
       tool: "persist",
@@ -53,7 +54,21 @@ describe("agentReducer", () => {
     });
     expect(state.toolStatuses.persist.status).toBe("done");
     expect(state.toolStatuses.persist.label).toBe("record #7");
+    expect(state.activeEdgeReverse).toBe(false);
+  });
+
+  it("sends a request pulse out and a data pulse back for a two-way tool", () => {
+    let state = started();
+    state = agentReducer(state, { type: "TOOL_CALL_STARTED", tool: "search_sop" });
+    expect(state.activeEdgeKind).toBe("request");
+    state = agentReducer(state, {
+      type: "TOOL_CALL_FINISHED",
+      tool: "search_sop",
+      resultSummary: { result: "ok" },
+      error: null,
+    });
     expect(state.activeEdgeReverse).toBe(true);
+    expect(state.activeEdgeKind).toBe("data");
   });
 
   it("marks a spoke tool errored and surfaces the error text as its label", () => {
