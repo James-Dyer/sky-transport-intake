@@ -12,6 +12,16 @@ export interface DocTokenPulse {
    * something, no data yet); "data" renders as a document glyph (actual
    * information moving). Defaults to "data". */
   kind?: "request" | "data";
+  /** Repeat indefinitely instead of playing once and freezing. Used while
+   * a tool call is in flight and its actual duration is unknown (a real
+   * model/tool can take anywhere from milliseconds to many seconds) — a
+   * one-shot pulse timed for the common case either freezes mid-path and
+   * sits dead for the remainder of a slow call, or (for a fast call)
+   * looks like it's still "sending" after the reply already arrived.
+   * Looping keeps a token continuously in transit for exactly as long as
+   * the call is actually running, which reads as one smooth "in progress"
+   * flow instead of a discrete blip that goes stale. */
+  loop?: boolean;
 }
 
 export interface IntakeEdgeData extends Record<string, unknown> {
@@ -75,6 +85,7 @@ export function IntakeEdge({
             begin={`${pulse.delayMs ?? 0}ms`}
             dur={`${pulse.durationMs ?? 1500}ms`}
             fill="freeze"
+            repeatCount={pulse.loop ? "indefinite" : 1}
             calcMode="spline"
             keyPoints={pulse.reverse ? "1;0" : "0;1"}
             keyTimes="0;1"
@@ -87,6 +98,7 @@ export function IntakeEdge({
             begin={`${pulse.delayMs ?? 0}ms`}
             dur={`${pulse.durationMs ?? 1500}ms`}
             fill="freeze"
+            repeatCount={pulse.loop ? "indefinite" : 1}
           />
         </g>
       ))}
