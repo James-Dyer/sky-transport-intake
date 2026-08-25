@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Background, ReactFlow, type Edge } from "@xyflow/react";
-import {
-  fetchRecords,
-  fetchSampleTickets,
-  resetStore,
-  streamRun,
-  submitSampleTicket,
-  submitUpload,
-} from "./api";
+import { fetchRecords, fetchSampleTickets, streamRun, submitSampleTicket } from "./api";
 import { agentReducer, diagramEdgeForTool, initialAgentState } from "./agentReducer";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
 import { HubNode, type HubNodeType } from "./components/HubNode";
@@ -199,24 +192,6 @@ function App() {
     [runTicket, sampleTickets]
   );
 
-  const handleUpload = useCallback(
-    (file: File, instructions: string, subject: string) => {
-      const displaySubject = subject || `Uploaded ticket: ${file.name}`;
-      void runTicket(displaySubject, () => submitUpload(file, instructions, subject));
-    },
-    [runTicket]
-  );
-
-  const handleReset = useCallback(() => {
-    resetStore()
-      .then(() => {
-        setLastResult(null);
-        setLogLines([]);
-        dispatch({ type: "RESET" });
-      })
-      .catch((err) => setBanner(String(err)));
-  }, []);
-
   const handleCardDragStart = useCallback(() => {
     setIsDraggingTicket(true);
   }, []);
@@ -353,8 +328,6 @@ function App() {
         <TicketPanel
           sampleTickets={sampleTickets}
           onRunSample={handleRunSample}
-          onUpload={handleUpload}
-          onReset={handleReset}
           running={agent.running}
           onCardDragStart={handleCardDragStart}
           onCardDragEnd={handleCardDragEnd}

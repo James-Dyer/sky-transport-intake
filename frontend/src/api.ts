@@ -41,22 +41,6 @@ export function submitSampleTicket(
   });
 }
 
-export function submitUpload(
-  file: File,
-  instructions: string,
-  subject?: string
-): Promise<{ run_id: string; doc_id: string; filename: string }> {
-  const form = new FormData();
-  form.append("file", file);
-  form.append("instructions", instructions);
-  if (subject) form.append("subject", subject);
-  return jsonFetch(`/api/tickets`, { method: "POST", body: form });
-}
-
-export function resetStore(): Promise<{ status: string }> {
-  return jsonFetch(`/api/reset`, { method: "POST" });
-}
-
 export interface LiveEventHandlers {
   onAgentThought?: (payload: { text: string; run_id: string }) => void;
   onToolCallStarted?: (payload: {
