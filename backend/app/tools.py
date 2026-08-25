@@ -124,8 +124,9 @@ def build_tools(ctx: RunContext) -> list[StructuredTool]:
         """Write the final record to the database. Requires the
         unlock_token returned by your most recent validate call for these
         exact doc_type/fields — call validate again if this is rejected.
-        This is the last step; once it succeeds, the ticket is processed.
-        Returns a JSON object."""
+        After this succeeds, call notify_human if your most recent validate
+        call returned needs_review: true — only then is the ticket fully
+        processed. Returns a JSON object."""
         try:
             tokens.redeem_token(unlock_token, ctx.run_id, doc_type, fields)
         except tokens.TokenError as exc:
