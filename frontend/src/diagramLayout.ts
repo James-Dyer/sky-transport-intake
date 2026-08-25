@@ -62,13 +62,19 @@ export interface DiagramNodeSpec {
  * target — no edge has to loop back around a node to reach a handle on the
  * wrong side. ticket and pdf_reader sit left of the hub and both connect
  * through its single left-side handle pair, so their edges visually merge
- * into one line approaching the hub. sop_search sits directly above, and
- * notify_human sits directly below — the same top/bottom arrangement,
- * mirrored. validate and database sit right of the hub — unlike the left
- * pair they get their own separate right-side handles (see agent's
- * sourceSides) rather than sharing one, since they're two unrelated
- * outputs and shouldn't read as a single merged path the way ticket/pdf
- * do. */
+ * into one line approaching the hub. sop_search sits directly above.
+ * validate and database sit right of the hub — unlike the left pair they
+ * get their own separate right-side handles (see agent's sourceSides)
+ * rather than sharing one, since they're two unrelated outputs and
+ * shouldn't read as a single merged path the way ticket/pdf do.
+ *
+ * notify_human also gets its own left-side handle (offset below the
+ * ticket/pdf one, so its line doesn't merge with theirs) rather than a
+ * straight line off the bottom — a bottom-center edge would run straight
+ * through the hub's own status-line text below it. Leaving left and
+ * dropping down instead routes around that text, using the same
+ * left-then-down step shape the ticket/pdf edges already use, just with
+ * its own vertical column sitting between their merge point and the hub. */
 export const DIAGRAM_NODES: DiagramNodeSpec[] = [
   { id: "ticket", label: "Ticket received", size: 76, x: 0, y: 56 },
   { id: "pdf_reader", label: "Read attached PDF", size: 76, x: 0, y: 256, targetSides: ["right"] },
@@ -83,14 +89,14 @@ export const DIAGRAM_NODES: DiagramNodeSpec[] = [
     sourceSides: [
       "left",
       "top",
-      "bottom",
+      { side: "left", id: "notify_human", offset: 75 },
       { side: "right", id: "validate", offset: 38 },
       { side: "right", id: "database", offset: 62 },
     ],
   },
   { id: "validate", label: "Validate against SOP rules", size: 76, x: 650, y: 56 },
   { id: "database", label: "Record filed", size: 76, x: 650, y: 256, writesData: true },
-  { id: "notify_human", label: "Notify human", size: 76, x: 300, y: 300, targetSides: ["top"] },
+  { id: "notify_human", label: "Notify human", size: 76, x: 190, y: 300, targetSides: ["top"] },
 ];
 
 export interface DiagramEdgeSpec {
@@ -127,7 +133,7 @@ export const DIAGRAM_EDGES: DiagramEdgeSpec[] = [
     id: "agent-notify_human",
     source: "agent",
     target: "notify_human",
-    sourceSide: "bottom",
+    sourceSide: { side: "left", id: "notify_human" },
     targetSide: "top",
   },
 ];
