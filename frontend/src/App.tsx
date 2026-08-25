@@ -324,7 +324,7 @@ function App() {
               ? [
                   {
                     key: `pulse-${agent.runId}-${agent.pulseSeq}-loop`,
-                    durationMs: 900,
+                    durationMs: 1500,
                     kind: agent.activeEdgeKind,
                     loop: true,
                   },
