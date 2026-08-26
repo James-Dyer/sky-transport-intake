@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Background, ReactFlow, type Edge } from "@xyflow/react";
-import {
-  fetchRecords,
-  fetchSampleTickets,
-  resetStore,
-  streamRun,
-  submitSampleTicket,
-  submitUpload,
-} from "./api";
+import { fetchRecords, fetchSampleTickets, streamRun, submitSampleTicket } from "./api";
 import { agentReducer, diagramEdgeForTool, initialAgentState } from "./agentReducer";
 import { IntakeEdge, type IntakeEdgeType } from "./components/IntakeEdge";
 import { HubNode, type HubNodeType } from "./components/HubNode";
@@ -199,24 +192,6 @@ function App() {
     [runTicket, sampleTickets]
   );
 
-  const handleUpload = useCallback(
-    (file: File, instructions: string, subject: string) => {
-      const displaySubject = subject || `Uploaded ticket: ${file.name}`;
-      void runTicket(displaySubject, () => submitUpload(file, instructions, subject));
-    },
-    [runTicket]
-  );
-
-  const handleReset = useCallback(() => {
-    resetStore()
-      .then(() => {
-        setLastResult(null);
-        setLogLines([]);
-        dispatch({ type: "RESET" });
-      })
-      .catch((err) => setBanner(String(err)));
-  }, []);
-
   const handleCardDragStart = useCallback(() => {
     setIsDraggingTicket(true);
   }, []);
@@ -302,6 +277,35 @@ function App() {
     () =>
       DIAGRAM_EDGES.map((spec) => {
         const isPulsing = agent.activeEdgeId === spec.id;
+        // The forward (request/data-out) leg's real duration is whatever
+        // the live model/tool actually takes — anywhere from instant to
+        // many seconds — so instead of a single pulse timed for a guess,
+        // loop a token continuously for as long as the target tool is
+        // still "active". Once it flips to done/error the tool call has
+        // actually finished: a two-way tool gets an explicit reverse pulse
+        // (activeEdgeReverse), a one-way tool (persist) just stops.
+        const inFlight = !agent.activeEdgeReverse && diagramState[spec.target].status === "active";
+        const pulses = isPulsing
+          ? agent.activeEdgeReverse
+            ? [
+                {
+                  key: `pulse-${agent.runId}-${agent.pulseSeq}`,
+                  durationMs: 1500,
+                  reverse: true,
+                  kind: agent.activeEdgeKind,
+                },
+              ]
+            : inFlight
+              ? [
+                  {
+                    key: `pulse-${agent.runId}-${agent.pulseSeq}-loop`,
+                    durationMs: 1500,
+                    kind: agent.activeEdgeKind,
+                    loop: true,
+                  },
+                ]
+              : []
+          : [];
         return {
           id: spec.id,
           source: spec.source,
@@ -311,16 +315,7 @@ function App() {
           type: "intake",
           data: {
             active: diagramState[spec.target].status !== "pending",
-            pulses: isPulsing
-              ? [
-                  {
-                    key: `pulse-${agent.runId}-${agent.pulseSeq}`,
-                    durationMs: 1500,
-                    reverse: agent.activeEdgeReverse,
-                    kind: agent.activeEdgeKind,
-                  },
-                ]
-              : [],
+            pulses,
           },
         } satisfies IntakeEdgeType;
       }),
@@ -333,8 +328,6 @@ function App() {
         <TicketPanel
           sampleTickets={sampleTickets}
           onRunSample={handleRunSample}
-          onUpload={handleUpload}
-          onReset={handleReset}
           running={agent.running}
           onCardDragStart={handleCardDragStart}
           onCardDragEnd={handleCardDragEnd}

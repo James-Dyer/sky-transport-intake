@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { sampleTicketAttachmentUrl } from "../api";
 import type { SampleTicket } from "../types";
 import { Modal } from "./Modal";
@@ -38,8 +38,6 @@ function buildDragThumbnail(title: string) {
 interface TicketPanelProps {
   sampleTickets: SampleTicket[];
   onRunSample: (ticketId: string) => void;
-  onUpload: (file: File, instructions: string, subject: string) => void;
-  onReset: () => void;
   running: boolean;
   onCardDragStart: () => void;
   onCardDragEnd: () => void;
@@ -53,27 +51,11 @@ interface TicketPanelProps {
 export function TicketPanel({
   sampleTickets,
   onRunSample,
-  onUpload,
-  onReset,
   running,
   onCardDragStart,
   onCardDragEnd,
 }: TicketPanelProps) {
-  const fileInput = useRef<HTMLInputElement>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
-  const [uploadInstructions, setUploadInstructions] = useState("");
-  const [uploadSubject, setUploadSubject] = useState("");
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-
-  const submitUpload = () => {
-    if (pendingFile && uploadInstructions.trim()) {
-      onUpload(pendingFile, uploadInstructions.trim(), uploadSubject.trim());
-      setPendingFile(null);
-      setUploadInstructions("");
-      setUploadSubject("");
-      if (fileInput.current) fileInput.current.value = "";
-    }
-  };
 
   return (
     <>
@@ -137,41 +119,6 @@ export function TicketPanel({
             </Modal>
           );
         })()}
-
-      <p className="eyebrow">Or submit a new ticket</p>
-      <div className="upload-zone">
-        <textarea
-          placeholder="Ticket instructions…"
-          value={uploadInstructions}
-          disabled={running}
-          onChange={(e) => setUploadInstructions(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Subject (optional)"
-          value={uploadSubject}
-          disabled={running}
-          onChange={(e) => setUploadSubject(e.target.value)}
-        />
-        <input
-          ref={fileInput}
-          type="file"
-          accept=".pdf"
-          disabled={running}
-          onChange={(e) => setPendingFile(e.target.files?.[0] ?? null)}
-        />
-        <button
-          className="submit-ticket-button"
-          disabled={running || !pendingFile || !uploadInstructions.trim()}
-          onClick={submitUpload}
-        >
-          Submit ticket
-        </button>
-      </div>
-
-      <button className="reset-button" onClick={onReset} disabled={running}>
-        Reset demo data
-      </button>
     </>
   );
 }
