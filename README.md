@@ -67,6 +67,13 @@ The biggest thing I learned building this is how much is actually happening arou
 
 Retrieval-augmented generation (RAG) is one piece of that: it lets you shape what the model knows and responds to by feeding it the right context at the right moment, instead of retraining or fine-tuning a model on custom data. LangGraph is the other piece: it's what turns a single request/response call into an actual agentic loop, letting the model reason step by step, decide which tool to call next, and keep working toward a goal instead of stopping after one reply. Neither technology makes the model smarter on its own. Together, they're what turns raw text-in, text-out capability into something that can handle an open-ended task, figure out what a document is, judge whether it's urgent, know when to hand off to a person, without anyone training a custom model to do it.
 
+## Future work
+
+- **The set of recognized document types is hand-synced across three places:** the SOP markdown, the `record_classification` tool's allowed-values list, and `validation.py`'s required-field map, despite the pitch being "the SOP is the single source of truth." Adding a real fourth document type today means remembering to update all three by hand.
+- **`notify_human` is currently a stub that just logs a line.** A real version would hook into whatever channel Sky Transport's staff actually watch day to day, Slack, email, or a push notification, chosen based on how the team wants to be alerted rather than what's fastest to demo.
+- **There's no auth on the API at all**, and CORS is opened to any localhost port for dev convenience, never meant to be exposed as-is. A production version would move to a proper zero-trust model: every service, tool call, and human touchpoint authenticated and authorized through enforced IAM policy.
+- **Everything is single-process, in-memory state** (the SSE event queues, the token store), would need a real pub/sub backend to run on more than one process.
+
 ---
 
 ## Tech stack
