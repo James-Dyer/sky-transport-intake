@@ -63,10 +63,13 @@ export interface DiagramNodeSpec {
  * wrong side. ticket and pdf_reader sit left of the hub and both connect
  * through its single left-side handle pair, so their edges visually merge
  * into one line approaching the hub. sop_search sits directly above.
- * validate and database sit right of the hub — unlike the left pair they
- * get their own separate right-side handles (see agent's sourceSides)
- * rather than sharing one, since they're two unrelated outputs and
- * shouldn't read as a single merged path the way ticket/pdf do.
+ * validate and database sit right of the hub, in that order, on a single
+ * chain: agent -> validate -> database, sharing one right-side handle on
+ * the agent (rather than each getting their own, the way notify_human
+ * does) since it's one path, not two unrelated outputs — validate gates
+ * every write to database on its deterministic check, so the edge reads
+ * as one line passing through the gate rather than two parallel lines
+ * out of the agent.
  *
  * notify_human also gets its own left-side handle (offset below the
  * ticket/pdf one, so its line doesn't merge with theirs) rather than a
@@ -90,12 +93,11 @@ export const DIAGRAM_NODES: DiagramNodeSpec[] = [
       "left",
       "top",
       { side: "left", id: "notify_human", offset: 75 },
-      { side: "right", id: "validate", offset: 38 },
-      { side: "right", id: "database", offset: 62 },
+      "right",
     ],
   },
-  { id: "validate", label: "Validation tool", size: 76, x: 650, y: 56 },
-  { id: "database", label: "Internal Database", size: 76, x: 650, y: 256, writesData: true },
+  { id: "validate", label: "Validation tool", size: 76, x: 520, y: 156 },
+  { id: "database", label: "Internal Database", size: 76, x: 692, y: 156, writesData: true },
   { id: "notify_human", label: "Notify human", size: 76, x: 190, y: 300, targetSides: ["top"] },
 ];
 
@@ -117,18 +119,8 @@ export const DIAGRAM_EDGES: DiagramEdgeSpec[] = [
   { id: "ticket-agent", source: "ticket", target: "agent" },
   { id: "agent-sop_search", source: "agent", target: "sop_search", sourceSide: "top", targetSide: "bottom" },
   { id: "agent-pdf_reader", source: "agent", target: "pdf_reader", sourceSide: "left", targetSide: "right" },
-  {
-    id: "agent-validate",
-    source: "agent",
-    target: "validate",
-    sourceSide: { side: "right", id: "validate" },
-  },
-  {
-    id: "agent-database",
-    source: "agent",
-    target: "database",
-    sourceSide: { side: "right", id: "database" },
-  },
+  { id: "agent-validate", source: "agent", target: "validate" },
+  { id: "validate-database", source: "validate", target: "database" },
   {
     id: "agent-notify_human",
     source: "agent",

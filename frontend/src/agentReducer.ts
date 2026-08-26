@@ -50,7 +50,7 @@ const TOOL_TO_EDGE: Partial<Record<ToolId, string>> = {
   search_sop: "agent-sop_search",
   read_pdf: "agent-pdf_reader",
   validate: "agent-validate",
-  persist: "agent-database",
+  persist: "validate-database",
   notify_human: "agent-notify_human",
 };
 
