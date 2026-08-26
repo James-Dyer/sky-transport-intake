@@ -42,6 +42,7 @@ jsonschema==4.26.0
 kubernetes==36.0.3
 langchain-anthropic==1.6.1
 langchain-core==1.6.0
+langchain-openai==1.1.1
 langchain-protocol==0.0.18
 langgraph-checkpoint==4.2.0
 langgraph-prebuilt==1.1.0

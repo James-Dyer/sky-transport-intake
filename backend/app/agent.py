@@ -99,14 +99,39 @@ def _now_iso() -> str:
 
 
 def build_model() -> BaseChatModel:
-    from langchain_anthropic import ChatAnthropic
-
     api_key = os.environ.get("LLM_API_KEY")
     if not api_key:
         raise RuntimeError(
             "LLM_API_KEY is not set — required for the real agent. Set it in "
             "backend/.env, or set SKY_INTAKE_FAKE_LLM=1 for offline runs."
         )
+    provider = os.environ.get("MODEL_PROVIDER", "anthropic").lower()
+
+    if provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        model_name = os.environ.get("MODEL_NAME", "gpt-5-mini")
+        # gpt-5-mini (and other reasoning models) draw hidden reasoning
+        # tokens from the same output budget as the visible response, so a
+        # budget sized for a non-reasoning chat model can be fully consumed
+        # by reasoning and leave nothing for the agent's actual tool call —
+        # this bit the v1 pipeline (see README "The Learning"). Keep the
+        # budget generous and reasoning effort low for a short-answer,
+        # tool-calling agent like this one.
+        return ChatOpenAI(
+            model=model_name,
+            api_key=api_key,
+            max_tokens=4096,
+            reasoning_effort="low",
+        )
+
+    if provider != "anthropic":
+        raise RuntimeError(
+            f"unknown MODEL_PROVIDER={provider!r}; supported: anthropic, openai"
+        )
+
+    from langchain_anthropic import ChatAnthropic
+
     model_name = os.environ.get("MODEL_NAME", "claude-haiku-4-5-20251001")
     return ChatAnthropic(model=model_name, api_key=api_key, max_tokens=2048)
 
