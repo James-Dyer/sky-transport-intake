@@ -25,6 +25,10 @@ export function fetchSampleTickets(): Promise<SampleTicket[]> {
   return jsonFetch<SampleTicket[]>("/api/sample-tickets");
 }
 
+export function sampleTicketAttachmentUrl(ticketId: string): string {
+  return `${BASE}/api/sample-tickets/${encodeURIComponent(ticketId)}/attachment`;
+}
+
 export function fetchRecords(): Promise<RecordRow[]> {
   return jsonFetch<RecordRow[]>("/api/records");
 }

@@ -48,8 +48,6 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .ticket-card .drag-hint { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
 .ticket-card p.preview { margin: 3px 0 0; font-size: 10px; color: #777; line-height: 1.4; }
 .ticket-card:hover:not([aria-disabled="true"]) { background: #fafafa; }
-.ticket-card.is-expanded { background: #111; color: #fff; cursor: default; }
-.ticket-card.is-expanded .drag-hint, .ticket-card.is-expanded p.preview { color: #ccc; }
 .ticket-drag-thumb {
   position: absolute; top: -1000px; left: -1000px;
   width: 180px; padding: 6px 10px;
@@ -61,10 +59,33 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .ticket-drag-thumb svg { flex: none; }
 .ticket-drag-thumb span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-card-full {
-  margin: 8px 0 0; padding: 8px; background: #000; color: #d4d4d4; font-size: 10px;
+  margin: 0; padding: 8px; background: #000; color: #d4d4d4; font-size: 10px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap;
-  max-height: 220px; overflow-y: auto; border: 1px solid #333;
+  max-height: 60vh; overflow-y: auto; border: 1px solid #333;
 }
+.attachment-link { color: #8ab4ff; text-decoration: underline; cursor: pointer; }
+.attachment-link:hover { color: #b8d1ff; }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, .55);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: #111; color: #fff; width: min(480px, 90vw);
+  border: 1px solid #333; box-shadow: 4px 4px 0 #000;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid #333; font-size: 13px;
+}
+.modal-close {
+  background: none; border: 1px solid #555; color: #ccc; font-size: 9px;
+  text-transform: uppercase; letter-spacing: .03em; padding: 4px 8px; cursor: pointer;
+}
+.modal-close:hover { background: #222; color: #fff; }
+.modal-body { padding: 10px 12px; }
+.modal-body .ticket-card-full { border: none; padding: 0; }
 
 .upload-zone {
   border: 1px dashed #111; padding: 12px; font-size: 11px; color: #555;

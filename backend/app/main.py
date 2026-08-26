@@ -23,7 +23,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from . import events
 from .agent import build_model, run_agent
@@ -156,6 +156,21 @@ async def health() -> dict:
 @app.get("/api/sample-tickets")
 async def list_sample_tickets() -> list[dict]:
     return [t.model_dump() for t in _load_sample_tickets()]
+
+
+@app.get("/api/sample-tickets/{ticket_id}/attachment")
+async def get_sample_ticket_attachment(ticket_id: str) -> FileResponse:
+    json_path = SAMPLE_TICKETS_DIR / f"{ticket_id}.json"
+    if not json_path.exists() or json_path.parent != SAMPLE_TICKETS_DIR:
+        raise HTTPException(404, f"no sample ticket {ticket_id!r}")
+    ticket = Ticket.model_validate_json(json_path.read_text())
+    pdf_path = SAMPLE_TICKETS_DIR / ticket.attachment_filename
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=ticket.attachment_filename,
+        content_disposition_type="inline",
+    )
 
 
 @app.post("/api/tickets/sample/{ticket_id}")

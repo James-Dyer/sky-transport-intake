@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
+import { sampleTicketAttachmentUrl } from "../api";
 import type { SampleTicket } from "../types";
+import { Modal } from "./Modal";
 
 const DRAG_THUMB_TITLE_LIMIT = 28;
 
@@ -58,7 +60,7 @@ export function TicketPanel({
   onCardDragEnd,
 }: TicketPanelProps) {
   const fileInput = useRef<HTMLInputElement>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
   const [uploadInstructions, setUploadInstructions] = useState("");
   const [uploadSubject, setUploadSubject] = useState("");
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -77,52 +79,64 @@ export function TicketPanel({
     <>
       <h2 className="panel-heading">Tickets</h2>
       <ul className="ticket-list">
-        {sampleTickets.map((ticket) => {
-          const isExpanded = expanded === ticket.ticket_id;
-          return (
-            <li key={ticket.ticket_id}>
-              <div
-                className={`ticket-card${isExpanded ? " is-expanded" : ""}`}
-                draggable={!running}
-                aria-disabled={running}
-                onDragStart={(e) => {
-                  if (running) {
-                    e.preventDefault();
-                    return;
-                  }
-                  e.dataTransfer.setData("text/plain", ticket.ticket_id);
-                  e.dataTransfer.effectAllowed = "copy";
-                  const thumb = buildDragThumbnail(ticket.subject);
-                  e.dataTransfer.setDragImage(thumb, 14, 14);
-                  window.setTimeout(() => thumb.remove(), 0);
-                  onCardDragStart();
-                }}
-                onDragEnd={onCardDragEnd}
-                onClick={() => setExpanded(isExpanded ? null : ticket.ticket_id)}
-                onDoubleClick={() => !running && onRunSample(ticket.ticket_id)}
-              >
-                <div className="ticket-card-head">
-                  <strong>{ticket.subject}</strong>
-                  <span className="drag-hint">{isExpanded ? "click to close" : "drag me"}</span>
-                </div>
-                {!isExpanded ? (
-                  <p className="preview">
-                    #{ticket.ticket_id} · {ticket.priority} · {ticket.attachment_filename}
-                  </p>
-                ) : (
-                  <pre className="ticket-card-full">
-                    Priority: {ticket.priority}
-                    {"\n"}Requester: {ticket.requester ?? "unknown"}
-                    {"\n"}Attachment: {ticket.attachment_filename}
-                    {"\n\n"}
-                    {ticket.instructions}
-                  </pre>
-                )}
+        {sampleTickets.map((ticket) => (
+          <li key={ticket.ticket_id}>
+            <div
+              className="ticket-card"
+              draggable={!running}
+              aria-disabled={running}
+              onDragStart={(e) => {
+                if (running) {
+                  e.preventDefault();
+                  return;
+                }
+                e.dataTransfer.setData("text/plain", ticket.ticket_id);
+                e.dataTransfer.effectAllowed = "copy";
+                const thumb = buildDragThumbnail(ticket.subject);
+                e.dataTransfer.setDragImage(thumb, 14, 14);
+                window.setTimeout(() => thumb.remove(), 0);
+                onCardDragStart();
+              }}
+              onDragEnd={onCardDragEnd}
+              onClick={() => setOpenTicketId(ticket.ticket_id)}
+              onDoubleClick={() => !running && onRunSample(ticket.ticket_id)}
+            >
+              <div className="ticket-card-head">
+                <strong>{ticket.subject}</strong>
+                <span className="drag-hint">drag me</span>
               </div>
-            </li>
-          );
-        })}
+              <p className="preview">
+                #{ticket.ticket_id} · {ticket.priority} · {ticket.attachment_filename}
+              </p>
+            </div>
+          </li>
+        ))}
       </ul>
+
+      {openTicketId &&
+        (() => {
+          const ticket = sampleTickets.find((t) => t.ticket_id === openTicketId);
+          if (!ticket) return null;
+          return (
+            <Modal title={ticket.subject} onClose={() => setOpenTicketId(null)}>
+              <pre className="ticket-card-full">
+                Priority: {ticket.priority}
+                {"\n"}Requester: {ticket.requester ?? "unknown"}
+                {"\n"}Attachment:{" "}
+                <a
+                  href={sampleTicketAttachmentUrl(ticket.ticket_id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="attachment-link"
+                >
+                  {ticket.attachment_filename}
+                </a>
+                {"\n\n"}
+                {ticket.instructions}
+              </pre>
+            </Modal>
+          );
+        })()}
 
       <p className="eyebrow">Or submit a new ticket</p>
       <div className="upload-zone">
