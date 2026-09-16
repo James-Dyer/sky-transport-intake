@@ -29,7 +29,7 @@ from .models import AgentRunState, Ticket
 from .sop_index import SopIndex
 from .store import Store
 
-logger = logging.getLogger("sky_intake.tools")
+logger = logging.getLogger("intake.tools")
 
 
 @dataclass
@@ -56,7 +56,7 @@ def _normalize_fields(fields: dict[str, Any]) -> dict[str, Any]:
 
 def build_tools(ctx: RunContext) -> list[StructuredTool]:
     def search_sop(query: str) -> str:
-        """Search Sky Transport's compliance SOP for guidance relevant to
+        """Search the company's compliance SOP for guidance relevant to
         the current ticket — what fields a document type requires, when a
         document counts as urgent, or what to do when a document doesn't
         clearly match a known type. Call this before classifying or

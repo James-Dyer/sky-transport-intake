@@ -7,7 +7,7 @@ dashboard.
 Diagnostics surface: `GET /api/runs/{run_id}` returns the full per-run
 trace (thoughts, tool calls, timing, results) for any run, `GET /api/health`
 reports which model is active and whether the SOP RAG index loaded, and
-every request is logged to backend/data/sky_intake.log.
+every request is logged to backend/data/intake.log.
 """
 
 from __future__ import annotations
@@ -38,13 +38,13 @@ load_dotenv(_BACKEND_DIR / ".env")
 load_dotenv(_BACKEND_DIR / ".env.local", override=True)
 
 configure_logging()
-logger = logging.getLogger("sky_intake.api")
+logger = logging.getLogger("intake.api")
 
 SOP_PATH = Path(__file__).resolve().parent.parent / "sop" / "compliance-intake.md"
 SAMPLE_TICKETS_DIR = Path(__file__).resolve().parent.parent / "sample_tickets"
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads"
 
-app = FastAPI(title="Sky Transport Intake Agent")
+app = FastAPI(title="Compliance Intake Agent")
 app.add_middleware(
     CORSMiddleware,
     # Vite picks the next free port (5173, 5174, ...) when one is taken, so
@@ -54,17 +54,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_db_path_override = os.environ.get("SKY_INTAKE_DB_PATH")
+_db_path_override = os.environ.get("INTAKE_DB_PATH")
 store = Store(_db_path_override) if _db_path_override else Store()
 sop_text = SOP_PATH.read_text()
 sop_index = SopIndex(sop_text)
 
-_use_fake = os.environ.get("SKY_INTAKE_FAKE_LLM", "").lower() in ("1", "true", "yes")
+_use_fake = os.environ.get("INTAKE_FAKE_LLM", "").lower() in ("1", "true", "yes")
 if _use_fake:
     from .fake_agent import FakeAgentModel
 
     model = FakeAgentModel()
-    logger.info("using FakeAgentModel (SKY_INTAKE_FAKE_LLM set)")
+    logger.info("using FakeAgentModel (INTAKE_FAKE_LLM set)")
 else:
     model = build_model()
     logger.info("using %s", type(model).__name__)

@@ -16,8 +16,8 @@ SAMPLE_PDF_BYTES = (
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    monkeypatch.setenv("SKY_INTAKE_DB_PATH", str(tmp_path / "api_test.db"))
-    monkeypatch.setenv("SKY_INTAKE_FAKE_LLM", "1")
+    monkeypatch.setenv("INTAKE_DB_PATH", str(tmp_path / "api_test.db"))
+    monkeypatch.setenv("INTAKE_FAKE_LLM", "1")
     # main.py builds `store`/`model`/`sop_index` at import time, so import
     # after env vars are set and force a fresh module each test.
     import sys

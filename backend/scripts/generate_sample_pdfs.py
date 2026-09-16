@@ -1,7 +1,7 @@
 """Generates backend/sample_tickets/{id}.json + {id}.pdf — the demo data
 for the v2 agent. Each ticket pairs an enterprise-style intake ticket
 (subject/instructions/priority/requester) with a realistic-looking attached
-PDF styled as the actual document a Sky Transport client or government
+PDF styled as the actual document a compliance-service client or government
 agency would send: an IFTA fuel-tax return, a state DMV IRP renewal notice,
 an FMCSA letter, or (the one non-compliance-doc case) a vendor invoice.
 
@@ -104,7 +104,7 @@ def build_01_ifta_q2(path: Path) -> None:
         ),
         Spacer(1, 10),
         Paragraph(
-            "Prepared for filing by Sky Transport Solutions on behalf of client. "
+            "Prepared for filing by Cascade Compliance Partners on behalf of client. "
             "Document date: August 22, 2026.",
             body,
         ),
@@ -274,7 +274,7 @@ def build_06_unrelated_invoice(path: Path) -> None:
     )
     flow += [
         Spacer(1, 6),
-        Paragraph("<b>Bill To:</b> Sky Transport Solutions, 121 East 11th Street, Tracy, CA", body),
+        Paragraph("<b>Bill To:</b> Cascade Compliance Partners, 121 East 11th Street, Tracy, CA", body),
         Spacer(1, 10),
         Table(
             [
@@ -308,7 +308,7 @@ TICKETS = [
         "ticket_id": "4821",
         "subject": "Process IFTA Q2 filing — Golden Valley Trucking",
         "priority": "Normal",
-        "requester": "front.office@skytransportsolutions.com",
+        "requester": "front.office@cascadecompliance.com",
         "instructions": (
             "Please process the attached quarterly IFTA return for Golden "
             "Valley Trucking. Client's filing window is coming up — confirm "
@@ -322,7 +322,7 @@ TICKETS = [
         "ticket_id": "4822",
         "subject": "IRP renewal notice — Pacific Crest Freight",
         "priority": "Normal",
-        "requester": "front.office@skytransportsolutions.com",
+        "requester": "front.office@cascadecompliance.com",
         "instructions": (
             "Attached is the IRP renewal notice we received from CA DMV for "
             "Pacific Crest Freight. Please log this into the client's file "
@@ -336,7 +336,7 @@ TICKETS = [
         "ticket_id": "4823",
         "subject": "URGENT — FMCSA out-of-service order, Redwood Logistics",
         "priority": "High",
-        "requester": "compliance@skytransportsolutions.com",
+        "requester": "compliance@cascadecompliance.com",
         "instructions": (
             "Client called in a panic — they received the attached FMCSA "
             "out-of-service order this morning. Please process immediately "
@@ -350,7 +350,7 @@ TICKETS = [
         "ticket_id": "4824",
         "subject": "MCS-150 reminder — Summit Line Haulers",
         "priority": "Low",
-        "requester": "front.office@skytransportsolutions.com",
+        "requester": "front.office@cascadecompliance.com",
         "instructions": (
             "Routine MCS-150 biennial update reminder came in for Summit "
             "Line Haulers, attached. Please log it — this is informational, "
@@ -363,7 +363,7 @@ TICKETS = [
         "ticket_id": "4825",
         "subject": "IFTA filing, Blue Ridge Hauling — client sent a partial scan",
         "priority": "Normal",
-        "requester": "front.office@skytransportsolutions.com",
+        "requester": "front.office@cascadecompliance.com",
         "instructions": (
             "Client emailed the attached IFTA return as a photo and part of "
             "it didn't come through clearly. Please process what's there "
@@ -377,7 +377,7 @@ TICKETS = [
         "ticket_id": "4826",
         "subject": "Office supply invoice — please file",
         "priority": "Low",
-        "requester": "front.office@skytransportsolutions.com",
+        "requester": "front.office@cascadecompliance.com",
         "instructions": (
             "Attached invoice came in through the general intake inbox by "
             "mistake — not sure it's actually a compliance document, please "

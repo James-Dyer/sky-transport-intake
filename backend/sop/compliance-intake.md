@@ -1,7 +1,7 @@
 # Compliance Document Intake — Standard Operating Procedure
 
 This document tells the intake agent how to classify, extract, and validate
-incoming compliance documents for Sky Transport Solutions clients. Any node
+incoming compliance documents for the company's clients. Any node
 that needs to know "what fields matter" or "what counts as urgent" reads this
 file at runtime rather than relying on a hardcoded schema.
 
@@ -79,7 +79,7 @@ leave a field null and flag `missing_fields` instead.
 ## Tone / escalation note
 
 This SOP is intentionally conservative: when in doubt, the agent should
-prefer routing to a human over guessing. Sky Transport's clients lose their
-operating authority if a filing is missed, so a false "needs_review" costs
-a staff member two minutes; a false auto-file on bad data costs a client
-their DOT number.
+prefer routing to a human over guessing. Clients lose their operating
+authority if a filing is missed, so a false "needs_review" costs a staff
+member two minutes; a false auto-file on bad data costs a client their
+DOT number.

@@ -1,7 +1,7 @@
-"""Structured JSON-line logging to backend/data/sky_intake.log plus stderr.
+"""Structured JSON-line logging to backend/data/intake.log plus stderr.
 
 Every log record includes run_id (when available) via a filter, so
-`grep run_id backend/data/sky_intake.log` reconstructs one run's full
+`grep run_id backend/data/intake.log` reconstructs one run's full
 server-side story — the append-only companion to the SQLite trace, useful
 when something fails before persist() ever runs (e.g. an LLM call raising
 before it reaches the trace-recording wrapper).
@@ -13,7 +13,7 @@ import logging
 import sys
 from pathlib import Path
 
-LOG_PATH = Path(__file__).resolve().parent.parent / "data" / "sky_intake.log"
+LOG_PATH = Path(__file__).resolve().parent.parent / "data" / "intake.log"
 
 
 def configure_logging(level: int = logging.INFO) -> None:
@@ -21,7 +21,7 @@ def configure_logging(level: int = logging.INFO) -> None:
     fmt = "%(asctime)s %(levelname)s %(name)s: %(message)s"
     formatter = logging.Formatter(fmt)
 
-    root = logging.getLogger("sky_intake")
+    root = logging.getLogger("intake")
     root.setLevel(level)
     root.handlers.clear()
 

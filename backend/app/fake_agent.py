@@ -1,5 +1,5 @@
 """Deterministic stand-in for the real Claude agent, used by the offline
-test suite (SKY_INTAKE_FAKE_LLM=1) so `pytest` never makes a network call.
+test suite (INTAKE_FAKE_LLM=1) so `pytest` never makes a network call.
 
 Unlike the old FakeLLMClient (which answered two fixed method calls),
 this is a fake *chat model* plugged into the same

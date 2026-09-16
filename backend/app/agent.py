@@ -27,10 +27,10 @@ from . import tokens as tokens_module
 from .models import AgentRunState, Ticket
 from .tools import RunContext, build_tools
 
-logger = logging.getLogger("sky_intake.agent")
+logger = logging.getLogger("intake.agent")
 
-SYSTEM_PROMPT = """You are the document-intake agent for Sky Transport \
-Solutions, a trucking compliance service company (DOT compliance, MC \
+SYSTEM_PROMPT = """You are the document-intake agent for Cascade \
+Compliance Partners, a trucking compliance service company (DOT compliance, MC \
 authority, IRP plates, IFTA permits, DQF, safety audits, and related \
 services for owner-operators and fleet managers).
 
@@ -103,7 +103,7 @@ def build_model() -> BaseChatModel:
     if not api_key:
         raise RuntimeError(
             "LLM_API_KEY is not set — required for the real agent. Set it in "
-            "backend/.env, or set SKY_INTAKE_FAKE_LLM=1 for offline runs."
+            "backend/.env, or set INTAKE_FAKE_LLM=1 for offline runs."
         )
     provider = os.environ.get("MODEL_PROVIDER", "anthropic").lower()
 

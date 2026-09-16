@@ -9,11 +9,11 @@ import pytest
 from dotenv import load_dotenv
 
 # Load a real key for tests/test_agent_live.py to pick up, but do NOT let it
-# flip the default offline suite over to real calls: SKY_INTAKE_FAKE_LLM=1
+# flip the default offline suite over to real calls: INTAKE_FAKE_LLM=1
 # is set explicitly below, after the .env load, so it always wins here.
 load_dotenv(BACKEND_DIR / ".env")
 load_dotenv(BACKEND_DIR / ".env.local", override=True)
-os.environ["SKY_INTAKE_FAKE_LLM"] = "1"
+os.environ["INTAKE_FAKE_LLM"] = "1"
 
 SOP_PATH = Path(__file__).resolve().parent.parent / "sop" / "compliance-intake.md"
 SAMPLE_TICKETS_DIR = Path(__file__).resolve().parent.parent / "sample_tickets"

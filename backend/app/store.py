@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "sky_intake.db"
+DEFAULT_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "intake.db"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS runs (

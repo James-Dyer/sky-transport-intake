@@ -1,6 +1,6 @@
-# Sky Transport Intake Agent
+# Compliance Intake Agent
 
-A demo of an agentic AI pipeline automating a repeated standard task for a trucking-services company. Submitted for Sky Transport Solutions' **Sky Innovation** candidate project, **Automate** track.
+A demo of an agentic AI pipeline automating a repeated standard task for a trucking-compliance services company.
 
 <p align="center">
   <img src="docs/flowchart-demo.gif" alt="Agent flowchart demo" />
@@ -10,7 +10,7 @@ A demo of an agentic AI pipeline automating a repeated standard task for a truck
 
 ## The Problem
 
-Sky Transport Solutions files compliance paperwork on behalf of trucking clients: IFTA fuel-tax filings, IRP plate renewals, DOT correspondence. Every incoming document currently needs a person to read it, figure out what type it is, pull out the right fields, and file it.
+A trucking-compliance service company files paperwork on behalf of its carrier clients: IFTA fuel-tax filings, IRP plate renewals, DOT correspondence. Every incoming document currently needs a person to read it, figure out what type it is, pull out the right fields, and file it.
 
 This is repeated, rules-driven work that eats staff time in small increments every day, and where a missed deadline has real consequences.
 
@@ -35,7 +35,7 @@ An agent receives a work ticket with a PDF attached, decides for itself which to
 # backend
 cd backend
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
-cp .env.example .env   # add an API key for your chosen provider, or set SKY_INTAKE_FAKE_LLM=1 for an offline run
+cp .env.example .env   # add an API key for your chosen provider, or set INTAKE_FAKE_LLM=1 for an offline run
 .venv/bin/uvicorn app.main:app --reload --port 8811
 
 # frontend (separate terminal)
@@ -70,7 +70,7 @@ Retrieval-augmented generation (RAG) is one piece of that: it lets you shape wha
 ## Future work
 
 - **The set of recognized document types is hand-synced across three places:** the SOP markdown, the `record_classification` tool's allowed-values list, and `validation.py`'s required-field map, despite the pitch being "the SOP is the single source of truth." Adding a real fourth document type today means remembering to update all three by hand.
-- **`notify_human` is currently a stub that just logs a line.** A real version would hook into whatever channel Sky Transport's staff actually watch day to day, Slack, email, or a push notification, chosen based on how the team wants to be alerted rather than what's fastest to demo.
+- **`notify_human` is currently a stub that just logs a line.** A real version would hook into whatever channel staff actually watch day to day, Slack, email, or a push notification, chosen based on how the team wants to be alerted rather than what's fastest to demo.
 - **There's no auth on the API at all**, and CORS is opened to any localhost port for dev convenience, never meant to be exposed as-is. A production version would move to a proper zero-trust model: every service, tool call, and human touchpoint authenticated and authorized through enforced IAM policy.
 - **Everything is single-process, in-memory state** (the SSE event queues, the token store), would need a real pub/sub backend to run on more than one process.
 

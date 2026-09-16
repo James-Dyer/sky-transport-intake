@@ -15,7 +15,7 @@ import json
 import logging
 from typing import Any
 
-logger = logging.getLogger("sky_intake.events")
+logger = logging.getLogger("intake.events")
 
 _queues: dict[str, asyncio.Queue] = {}
 
